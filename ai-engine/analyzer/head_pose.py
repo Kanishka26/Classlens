@@ -41,6 +41,8 @@ def estimate_head_pose(landmarks, frame_shape):
     pose_mat = cv2.hconcat([rotation_mat, translation_vec])
     _, _, _, _, _, _, euler_angles = cv2.decomposeProjectionMatrix(pose_mat)
 
+    # Flatten to make sure we get clean scalar values
+    euler_angles = euler_angles.flatten()
     pitch = float(euler_angles[0])
     yaw = float(euler_angles[1])
     roll = float(euler_angles[2])
@@ -48,6 +50,10 @@ def estimate_head_pose(landmarks, frame_shape):
     return pitch, yaw, roll
 
 def head_pose_score(pitch, yaw, roll):
+    pitch = float(np.squeeze(pitch))
+    yaw = float(np.squeeze(yaw))
+    roll = float(np.squeeze(roll))
+    
     yaw_penalty = min(abs(yaw) / 30.0, 1.0)
     pitch_penalty = min(abs(pitch) / 25.0, 1.0)
     score = 100 * (1 - 0.6 * yaw_penalty - 0.4 * pitch_penalty)

@@ -1,0 +1,15 @@
+# Environment & secrets
+.env
+serviceAccountKey.json
+.venv/
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Build
+dist/
+.vite/
