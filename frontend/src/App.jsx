@@ -5,6 +5,7 @@ import { AuthContext, AuthProvider } from './context/AuthContext'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import ClassroomsPage from './pages/ClassroomsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ReportsPage from './pages/ReportsPage'
 
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+          <Route path="/classrooms" element={<PrivateRoute><ClassroomsPage /></PrivateRoute>} />
           <Route path="/analytics" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
           <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
         </Routes>

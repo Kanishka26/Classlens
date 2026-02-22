@@ -16,26 +16,25 @@ export default function LoginPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
- const handleSubmit = async () => {
-  setLoading(true)
-  setError('')
-  try {
-    // TEMPORARY: skip backend, use mock login
-    const mockUser = {
-      id: '123',
-      name: form.name || 'Test Teacher',
-      email: form.email,
-      role: form.role
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const endpoint = tab === 'login' ? '/auth/login' : '/auth/register'
+      const payload = tab === 'login'
+        ? { email: form.email, password: form.password }
+        : { email: form.email, password: form.password, name: form.name, role: form.role }
+      const { data } = await axios.post(`${API}${endpoint}`, payload)
+      login(data.user, data.token)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong')
+    } finally {
+      setLoading(false)
     }
-    const mockToken = 'mock_token_123'
-    login(mockUser, mockToken)
-    navigate('/dashboard')
-  } catch (err) {
-    setError('Something went wrong')
-  } finally {
-    setLoading(false)
   }
-}
+
 
   return (
     <div className="min-h-screen bg-[#0f1123] flex items-center justify-center p-4">
@@ -61,7 +60,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <div className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {tab === 'register' && (
             <input name="name" value={form.name} onChange={handleChange}
               placeholder="Full Name"
@@ -78,7 +77,7 @@ export default function LoginPage() {
           {tab === 'register' && (
             <div className="grid grid-cols-2 gap-3 pt-1">
               {['teacher', 'student'].map(r => (
-                <button key={r} onClick={() => setForm({ ...form, role: r })}
+                <button key={r} type="button" onClick={() => setForm({ ...form, role: r })}
                   className={`py-3 rounded-xl text-sm font-medium border transition-colors capitalize
                     ${form.role === r
                       ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -88,16 +87,16 @@ export default function LoginPage() {
               ))}
             </div>
           )}
-        </div>
 
-        {/* Error */}
-        {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+          {/* Error */}
+          {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
 
-        {/* Submit */}
-        <button onClick={handleSubmit} disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl mt-4 transition-colors">
-          {loading ? 'Please wait...' : tab === 'login' ? 'Sign In' : 'Create Account'}
-        </button>
+          {/* Submit */}
+          <button type="submit" disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl mt-4 transition-colors">
+            {loading ? 'Please wait...' : tab === 'login' ? 'Sign In' : 'Create Account'}
+          </button>
+        </form>
 
         <p className="text-center text-slate-500 text-sm mt-4">
           {tab === 'login' ? "Don't have an account? " : 'Already have an account? '}

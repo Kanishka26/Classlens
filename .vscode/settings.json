@@ -1,0 +1,10 @@
+{
+  "debug.console.fontSize": 12,
+  "debug.console.lineHeight": 1.5,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

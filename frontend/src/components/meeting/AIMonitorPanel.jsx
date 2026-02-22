@@ -108,10 +108,10 @@ export default function AIMonitorPanel({ engagementMap, participants, onClose })
                 <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-[#0f1123] transition-colors">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {String(p.uid).slice(0, 2).toUpperCase()}
+                      {String(p.name).slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-white text-xs font-medium">Student {String(p.uid).slice(0, 6)}</p>
+                      <p className="text-white text-xs font-medium">{p.name}</p>
                       {status && <p className={`text-xs ${status.color}`}>{status.label}</p>}
                     </div>
                   </div>

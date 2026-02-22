@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useContext } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import AgoraRTC from 'agora-rtc-sdk-ng'
+import { io } from 'socket.io-client'
 import { AuthContext } from '../context/AuthContext'
 import StudentTile from '../components/meeting/StudentTile'
 import AIMonitorPanel from '../components/meeting/AIMonitorPanel'
@@ -22,18 +23,69 @@ export default function MeetingPage() {
   const [joined, setJoined] = useState(false)
   const [engagementMap, setEngagementMap] = useState({})
   const [alerts, setAlerts] = useState([])
+  const [studentNames, setStudentNames] = useState({})
+  const [agoraUid, setAgoraUid] = useState(null)
 
   const clientRef = useRef(null)
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
   const canvasRef = useRef(null)
   const analysisRef = useRef(null)
+  const socketRef = useRef(null)
+  const agoraUidRef = useRef(null)
 
   const isTeacher = user?.role === 'teacher'
 
   useEffect(() => {
     const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
     clientRef.current = client
+
+    // Socket.IO
+    const socket = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000')
+    socketRef.current = socket
+    socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id)
+      socket.emit('join_session', { sessionId, role: user?.role, name: user?.name })
+    })
+
+    // Listen for existing participants when we join
+    socket.on('existing_participants', ({ participants }) => {
+      console.log('📋 [EXISTING PARTICIPANTS]:', participants)
+      setStudentNames(prev => {
+        const updated = { ...prev }
+        participants.forEach(p => {
+          updated[p.agoraUid] = p.name
+          console.log(`✅ Mapped agoraUid ${p.agoraUid} to name: ${p.name}`)
+        })
+        return updated
+      })
+    })
+
+    // Listen for new participants joining
+    socket.on('participant_agora_uid', ({ agoraUid, name, role }) => {
+      console.log('🆔 [PARTICIPANT AGORA UID UPDATE]:', { agoraUid, name, role })
+      setStudentNames(prev => {
+        const updated = { ...prev, [agoraUid]: name }
+        console.log('✅ Updated agoraUid', agoraUid, 'to name:', name)
+        return updated
+      })
+    })
+
+    // Teacher listens for real student scores
+    socket.on('engagement_update', ({ agoraUid, studentName, score }) => {
+      console.log('🎯 [TEACHER] Received engagement_update:', { agoraUid, studentName, score }, 'Current map:', engagementMap)
+      setEngagementMap(prev => {
+        const updated = { ...prev, [agoraUid]: score }
+        console.log('📊 Updated engagementMap:', updated)
+        return updated
+      })
+      setStudentNames(prev => ({ ...prev, [agoraUid]: studentName }))
+      if (score < 40) {
+        const alertId = Date.now()
+        setAlerts(prev => [...prev.slice(-2), { id: alertId, studentName, score }])
+        setTimeout(() => setAlerts(prev => prev.filter(a => a.id !== alertId)), 5000)
+      }
+    })
 
     client.on('user-published', async (remoteUser, mediaType) => {
       await client.subscribe(remoteUser, mediaType)
@@ -49,15 +101,29 @@ export default function MeetingPage() {
 
     client.on('user-left', (remoteUser) => {
       setRemoteUsers(prev => prev.filter(u => u.uid !== remoteUser.uid))
+      setEngagementMap(prev => { const n = { ...prev }; delete n[remoteUser.uid]; return n })
     })
 
     joinChannel(client)
-    return () => leaveChannel()
+
+    return () => {
+      socket.disconnect()
+      leaveChannel()
+    }
   }, [])
 
   const joinChannel = async (client) => {
     try {
-      await client.join(APP_ID, sessionId, null, user?.uid || Math.floor(Math.random() * 10000))
+      const uid = await client.join(APP_ID, sessionId, null, null)
+      agoraUidRef.current = uid
+      setAgoraUid(uid)
+      
+      // Send agoraUid to backend so others know this participant's UID
+      if (socketRef.current) {
+        socketRef.current.emit('send_agora_uid', { sessionId, agoraUid: uid, name: user?.name, role: user?.role })
+        console.log(`📤 [${user?.role}] Sent agoraUid to backend:`, uid)
+      }
+      
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks()
       setLocalTracks({ audio: audioTrack, video: videoTrack })
       await client.publish([audioTrack, videoTrack])
@@ -68,7 +134,7 @@ export default function MeetingPage() {
       if (!isTeacher) startEngagementAnalysis(videoTrack)
     } catch (err) {
       console.error('Failed to join:', err)
-      setJoined(true) // show UI anyway for demo
+      setJoined(true)
     }
   }
 
@@ -81,9 +147,13 @@ export default function MeetingPage() {
   }
 
   const startEngagementAnalysis = (videoTrack) => {
-    const canvas = canvasRef.current
     analysisRef.current = setInterval(async () => {
       try {
+        const canvas = canvasRef.current
+        if (!canvas) {
+          console.error('❌ [STUDENT] Canvas element not found')
+          return
+        }
         const mediaStreamTrack = videoTrack.getMediaStreamTrack()
         const imageCapture = new ImageCapture(mediaStreamTrack)
         const bitmap = await imageCapture.grabFrame()
@@ -100,19 +170,29 @@ export default function MeetingPage() {
         const result = await response.json()
         const score = result.score
 
-        setEngagementMap(prev => ({ ...prev, [user.uid]: score }))
+        // Update own score locally
+        setEngagementMap(prev => ({ ...prev, [agoraUidRef.current]: score }))
 
-        // Post to backend
+        // Post to backend with agoraUid
         const token = localStorage.getItem('classlens_token')
-        await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/engagement`, {
+        const engagementPayload = { sessionId, score, agoraUid: agoraUidRef.current, details: result.details }
+        console.log('🎤 [STUDENT] Posting engagement:', engagementPayload)
+        
+        const postResponse = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/engagement`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ sessionId, score, details: result.details })
+          body: JSON.stringify(engagementPayload)
         })
+        
+        if (!postResponse.ok) {
+          console.error('❌ [STUDENT] Failed to post engagement:', postResponse.status, await postResponse.text())
+        } else {
+          console.log('✅ [STUDENT] Engagement posted successfully')
+        }
       } catch (err) {
-        // Simulate score for demo if AI engine not running
+        console.error('❌ [STUDENT] Error in engagement analysis:', err)
         const mockScore = Math.floor(Math.random() * 40 + 60)
-        setEngagementMap(prev => ({ ...prev, [user?.uid]: mockScore }))
+        setEngagementMap(prev => ({ ...prev, [agoraUidRef.current]: mockScore }))
       }
     }, 2000)
   }
@@ -149,15 +229,10 @@ export default function MeetingPage() {
     navigate('/dashboard')
   }
 
-  // Simulate some remote users for demo
-  const mockParticipants = [
-    { uid: 'AK', name: 'Aisha Khan' },
-    { uid: 'TK', name: 'Tara Kapoor' },
-    { uid: 'AP', name: 'Aryan Pillai' },
-    { uid: 'RB', name: 'Rohan Bhat' },
-  ]
-
-  const allParticipants = [...remoteUsers, ...mockParticipants]
+  const realParticipants = remoteUsers.map(u => ({
+    uid: u.uid,
+    name: studentNames[u.uid] || `Student ${String(u.uid).slice(0, 6)}`
+  }))
 
   if (!joined) {
     return (
@@ -183,19 +258,18 @@ export default function MeetingPage() {
         </div>
         <div className="flex items-center gap-2 text-slate-400 text-sm">
           <Users size={16} />
-          <span>{allParticipants.length + 1} participants</span>
+          <span>{realParticipants.length + 1} participants</span>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Video Grid */}
         <div className="flex-1 p-4 overflow-y-auto">
-          {/* Alert banners */}
           {alerts.length > 0 && (
             <div className="mb-3 space-y-1">
               {alerts.map(alert => (
                 <div key={alert.id} className="bg-orange-900/50 border border-orange-600/50 rounded-lg px-3 py-2 text-sm text-orange-200 flex items-center gap-2">
-                  ⚠️ <strong>Student {alert.studentId}</strong> dropped to {alert.score}% — consider re-engaging!
+                  ⚠️ <strong>{alert.studentName}</strong> dropped to {alert.score}% — consider re-engaging!
                 </div>
               ))}
             </div>
@@ -204,25 +278,17 @@ export default function MeetingPage() {
           <div className="grid grid-cols-4 gap-3">
             {/* Local tile */}
             <StudentTile
-              label={`${user?.name || 'You'} (You)`}
+              label={`${user?.name || 'You'} (${isTeacher ? 'Teacher' : 'You'})`}
               videoRef={localVideoRef}
-              score={engagementMap[user?.uid]}
+              score={isTeacher ? undefined : engagementMap[agoraUid]}
               isLocal
             />
-            {/* Mock student tiles */}
-            {mockParticipants.map((p, i) => (
-              <StudentTile
-                key={i}
-                label={p.name}
-                score={[72, 45, 88, 61][i]}
-              />
-            ))}
             {/* Real remote users */}
             {remoteUsers.map(remoteUser => (
               <StudentTile
                 key={remoteUser.uid}
                 remoteUser={remoteUser}
-                label={`Student ${remoteUser.uid}`}
+                label={studentNames[remoteUser.uid] || `Student ${String(remoteUser.uid).slice(0, 6)}`}
                 score={engagementMap[remoteUser.uid]}
               />
             ))}
@@ -232,14 +298,13 @@ export default function MeetingPage() {
         {/* AI Monitor Panel */}
         {showPanel && (
           <AIMonitorPanel
-            engagementMap={{ AK: 72, TK: 45, AP: 88, RB: 61, ...engagementMap }}
-            participants={allParticipants}
+            engagementMap={engagementMap}
+            participants={realParticipants}
             onClose={() => setShowPanel(false)}
           />
         )}
       </div>
 
-      {/* Hidden canvas for frame capture */}
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Controls Bar */}
