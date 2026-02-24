@@ -3,16 +3,16 @@ from analyzer.head_pose import estimate_head_pose, head_pose_score
 import numpy as np
 
 WEIGHTS = {
-    "face_present": 0.20,
-    "eye_openness": 0.30,
-    "head_pose":    0.35,
+    "face_present": 0.15,
+    "eye_openness": 0.25,
+    "head_pose":    0.45,
     "attention_stability": 0.15
 }
 
-EAR_CLOSED = 0.12
-EAR_DROWSY = 0.17
-EAR_NORMAL = 0.22
-EAR_WIDE = 0.30
+EAR_CLOSED = 0.15
+EAR_DROWSY = 0.20
+EAR_NORMAL = 0.26
+EAR_WIDE = 0.35
 
 _previous_state = {
     "eye_ear": 0.25,
@@ -51,19 +51,19 @@ def compute_engagement_score(frame):
     avg_ear = (left_ear + right_ear) / 2.0
 
     if avg_ear < EAR_CLOSED:
-        eye_score = 10
+        eye_score = 5
         eye_state = "closed"
     elif avg_ear < EAR_DROWSY:
         eye_scale = (avg_ear - EAR_CLOSED) / (EAR_DROWSY - EAR_CLOSED)
-        eye_score = 10 + eye_scale * 35
+        eye_score = 5 + eye_scale * 30
         eye_state = "drowsy"
     elif avg_ear < EAR_NORMAL:
         eye_scale = (avg_ear - EAR_DROWSY) / (EAR_NORMAL - EAR_DROWSY)
-        eye_score = 45 + eye_scale * 40
+        eye_score = 35 + eye_scale * 40
         eye_state = "normal"
     else:
         eye_scale = min((avg_ear - EAR_NORMAL) / (EAR_WIDE - EAR_NORMAL), 1.0)
-        eye_score = 85 + eye_scale * 15
+        eye_score = 75 + eye_scale * 25
         eye_state = "wide_open"
 
     result["details"]["eye_contact_score"] = round(eye_score)
@@ -78,7 +78,7 @@ def compute_engagement_score(frame):
         result["details"]["pitch"] = round(pitch, 1)
         result["details"]["yaw"] = round(yaw, 1)
     else:
-        hp_score = 50
+        hp_score = 0
 
     # Attention stability score
     stability_score = compute_attention_stability(
@@ -99,7 +99,7 @@ def compute_engagement_score(frame):
     else:
         _previous_state["eye_ear"] = avg_ear
 
-    # Final score — simple weighted sum, no penalizing scaling
+    # Final weighted score
     final_score = (
         WEIGHTS["face_present"] * face_score +
         WEIGHTS["eye_openness"] * eye_score +
@@ -116,10 +116,11 @@ def compute_head_pose_score(pitch, yaw, roll):
     yaw = float(np.squeeze(yaw))
     roll = float(np.squeeze(roll))
 
-    yaw_gaussian = np.exp(-((yaw ** 2) / (2 * 25 ** 2)))
+    # Stricter Gaussian curves
+    yaw_gaussian = np.exp(-((yaw ** 2) / (2 * 15 ** 2)))
     pitch_offset = pitch + 15
-    pitch_gaussian = np.exp(-((pitch_offset ** 2) / (2 * 30 ** 2)))
-    roll_gaussian = np.exp(-((abs(roll) ** 2) / (2 * 35 ** 2)))
+    pitch_gaussian = np.exp(-((pitch_offset ** 2) / (2 * 20 ** 2)))
+    roll_gaussian = np.exp(-((abs(roll) ** 2) / (2 * 25 ** 2)))
 
     hp_score = 100 * (
         0.5 * yaw_gaussian +
@@ -141,3 +142,4 @@ def compute_attention_stability(curr_ear, prev_ear, curr_yaw, prev_yaw, curr_pit
 
     stability_score = 100 - ear_penalty - head_penalty
     return max(0, min(100, stability_score))
+
