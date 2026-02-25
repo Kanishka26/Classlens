@@ -13,7 +13,7 @@ export default function MeetingPage() {
   const { sessionId } = useParams()
   const { user } = useContext(AuthContext)
   const navigate = useNavigate()
-
+  const [showParticipants, setShowParticipants] = useState(false)
   const [remoteUsers, setRemoteUsers] = useState([])
   const [localTracks, setLocalTracks] = useState({ audio: null, video: null })
   const [isMuted, setIsMuted] = useState(false)
@@ -256,24 +256,60 @@ export default function MeetingPage() {
             Live
           </div>
         </div>
-        <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <Users size={16} />
-          <span>{realParticipants.length + 1} participants</span>
+        <div className="relative">
+  <button
+    onClick={() => setShowParticipants(!showParticipants)}
+    className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-[#2d3155]">
+    <Users size={16} />
+    <span>{realParticipants.length + 1} participants</span>
+  </button>
+
+  {showParticipants && (
+    <div className="absolute right-0 top-full mt-2 w-64 bg-[#1a1d35] border border-[#2d3155] rounded-xl shadow-lg z-50 overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#2d3155]">
+        <p className="text-white text-sm font-semibold">Participants ({realParticipants.length + 1})</p>
+      </div>
+      <div className="max-h-64 overflow-y-auto">
+        {/* You */}
+        <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0f1123]">
+          <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+            {user?.name?.[0]?.toUpperCase()}
+          </div>
+          <div>
+            <p className="text-white text-sm">{user?.name} <span className="text-slate-500 text-xs">(You)</span></p>
+            <p className="text-slate-400 text-xs capitalize">{user?.role}</p>
+          </div>
         </div>
+        {/* Remote participants */}
+        {realParticipants.map((p, i) => (
+          <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0f1123]">
+            <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {p.name?.[0]?.toUpperCase()}
+            </div>
+            <div>
+              <p className="text-white text-sm">{p.name}</p>
+              <p className="text-slate-400 text-xs">Student</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )}
+</div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Video Grid */}
         <div className="flex-1 p-4 overflow-y-auto">
-          {alerts.length > 0 && (
-            <div className="mb-3 space-y-1">
-              {alerts.map(alert => (
-                <div key={alert.id} className="bg-orange-900/50 border border-orange-600/50 rounded-lg px-3 py-2 text-sm text-orange-200 flex items-center gap-2">
-                  ⚠️ <strong>{alert.studentName}</strong> dropped to {alert.score}% — consider re-engaging!
-                </div>
-              ))}
-            </div>
-          )}
+          {isTeacher && alerts.length > 0 && (
+  <div className="mb-3 space-y-1">
+    {alerts.map(alert => (
+      <div key={alert.id} className="bg-orange-900/50 border border-orange-600/50 rounded-lg px-3 py-2 text-sm text-orange-200 flex items-center gap-2">
+        ⚠️ <strong>{alert.studentName}</strong> dropped to {alert.score}% — consider re-engaging!
+      </div>
+    ))}
+  </div>
+)}
 
           <div className="grid grid-cols-4 gap-3">
             {/* Local tile */}
@@ -296,13 +332,13 @@ export default function MeetingPage() {
         </div>
 
         {/* AI Monitor Panel */}
-        {showPanel && (
-          <AIMonitorPanel
-            engagementMap={engagementMap}
-            participants={realParticipants}
-            onClose={() => setShowPanel(false)}
-          />
-        )}
+        {isTeacher && showPanel && (
+  <AIMonitorPanel
+    engagementMap={engagementMap}
+    participants={realParticipants}
+    onClose={() => setShowPanel(false)}
+  />
+)}
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
@@ -321,12 +357,14 @@ export default function MeetingPage() {
             label={isSharing ? 'Stop Share' : 'Share Screen'}
             color="blue" />
         )}
-        <ControlBtn
-          onClick={() => setShowPanel(!showPanel)}
-          active={showPanel}
-          icon={<Activity size={18} />}
-          label="Engagement"
-          color="indigo" />
+        {isTeacher && (
+  <ControlBtn
+    onClick={() => setShowPanel(!showPanel)}
+    active={showPanel}
+    icon={<Activity size={18} />}
+    label="Engagement"
+    color="indigo" />
+)}
         <ControlBtn onClick={handleLeave}
           icon={<PhoneOff size={18} />}
           label="End Class"

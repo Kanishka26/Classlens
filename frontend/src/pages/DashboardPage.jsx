@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useContext } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import Navbar from '../components/layout/Navbar'
-import { BookOpen, Users, Video, TrendingUp, Plus, Play, BarChart2, FileText, Radio, Clock, Award } from 'lucide-react'
+import { BookOpen, Users, Video, TrendingUp, Plus, Play, BarChart2, FileText, Radio, Clock, Award,X } from 'lucide-react'
+
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'
 
@@ -32,13 +33,34 @@ const quickActions = [
   { label: 'View Analytics', icon: <BarChart2 size={16} /> },
   { label: 'Generate Reports', icon: <FileText size={16} /> },
 ]
-
+function CopyButton({ code }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(code)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }}
+      className={`w-full mb-3 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
+        copied
+          ? 'bg-green-600/20 border-green-500 text-green-400'
+          : 'border-[#2d3155] hover:border-indigo-500 text-slate-300 hover:text-white'
+      }`}>
+      {copied ? '✓ Copied!' : 'Copy Code'}
+    </button>
+  )
+}
 export default function DashboardPage() {
   const { user } = useContext(AuthContext)
   const navigate = useNavigate()
   const [sessions] = useState(mockSessions)
   const [liveSessions] = useState(mockLiveSessions)
   const [enrolledClassrooms, setEnrolledClassrooms] = useState(mockStudentClasses)
+  const [meetingCode, setMeetingCode] = useState(null)
+  const [pendingMeetingId, setPendingMeetingId] = useState(null)
+  const [joinCode, setJoinCode] = useState('')
+  const [showJoinModal, setShowJoinModal] = useState(false)
 
   // Fetch enrolled classrooms for students
   useEffect(() => {
@@ -84,19 +106,76 @@ export default function DashboardPage() {
     if (score >= 50) return 'bg-yellow-600/20'
     return 'bg-red-600/20'
   }
-
+const handleStartInstantMeeting = async () => {
+  try {
+    const token = localStorage.getItem('classlens_token')
+    const res = await fetch(`${BACKEND_URL}/session/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        name: `${user?.name}'s Instant Meeting`,
+        classroomId: 'instant'
+      })
+    })
+    const data = await res.json()
+    if (data.id) {
+      setMeetingCode(data.channelName)
+      setPendingMeetingId(data.id)
+    }
+  } catch (err) {
+    console.error('Failed to start meeting:', err)
+  }
+}
+const handleJoinMeeting = async () => {
+  if (!joinCode.trim()) return
+  try {
+    const token = localStorage.getItem('classlens_token')
+    const res = await fetch(`${BACKEND_URL}/session/join`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ channelName: joinCode.trim().toUpperCase() })
+    })
+    const data = await res.json()
+    if (data.session?.id) {
+      setShowJoinModal(false)
+      navigate(`/meet/${data.session.id}`)
+    } else {
+      alert('Meeting not found! Check the code and try again.')
+    }
+  } catch (err) {
+    console.error('Failed to join meeting:', err)
+  }
+}
   // Student Dashboard Component
   const StudentDashboard = () => (
     <div className="min-h-screen bg-[#0f1123]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            Welcome, <span className="text-indigo-400">{user?.name?.split(' ')[0] || 'Student'}</span>
-          </h1>
-          <p className="text-slate-400 mt-1">Your classes and learning progress.</p>
-        </div>
+        <div className="flex items-start justify-between mb-8">
+  <div>
+    <h1 className="text-3xl font-bold text-white">
+      Welcome, <span className="text-indigo-400">{user?.name?.split(' ')[0] || 'Student'}</span>
+    </h1>
+    <p className="text-slate-400 mt-1">Your classes and learning progress.</p>
+  </div>
+  <div className="flex gap-3">
+  <button onClick={() => setShowJoinModal(true)}
+    className="flex items-center gap-2 border border-[#2d3155] hover:border-indigo-500 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+    <Play size={16} /> Join Meeting
+  </button>
+  <button onClick={handleStartInstantMeeting}
+    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
+    <Video size={16} /> Start Instant Meeting
+  </button>
+</div>
+</div>
 
         {/* Live Classes Available */}
         {enrolledClassrooms.some(c => c.status === 'live') && (
@@ -397,5 +476,65 @@ export default function DashboardPage() {
   )
 
   // Render based on user role
-  return user?.role === 'teacher' ? <TeacherDashboard /> : <StudentDashboard />
+return (
+  <>
+    {user?.role === 'teacher' ? <TeacherDashboard /> : <StudentDashboard />}
+
+    {/* Meeting Code Modal */}
+    {meetingCode && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl p-8 w-full max-w-md text-center relative">
+      <button onClick={() => { setMeetingCode(null); setPendingMeetingId(null) }}
+        className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+        <X size={20} />
+      </button>
+      <div className="w-16 h-16 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Video size={28} className="text-indigo-400" />
+      </div>
+      <h2 className="text-white font-bold text-xl mb-2">Meeting Created!</h2>
+      <p className="text-slate-400 text-sm mb-6">Share this code with others to join your meeting</p>
+      <div className="bg-[#0f1123] rounded-xl p-4 mb-6">
+        <p className="text-slate-400 text-xs mb-2">Meeting Code</p>
+        <p className="text-4xl font-bold text-indigo-400 tracking-widest">{meetingCode}</p>
+      </div>
+      <CopyButton code={meetingCode} />
+      <button onClick={() => { setMeetingCode(null); navigate(`/meet/${pendingMeetingId}`) }}
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+        Start Meeting →
+      </button>
+    </div>
+  </div>
+)}
+
+    {/* Join Meeting Modal */}
+    {showJoinModal && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl p-8 w-full max-w-md text-center relative">
+      <button onClick={() => { setShowJoinModal(false); setJoinCode('') }}
+        className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+        <X size={20} />
+      </button>
+      <div className="w-16 h-16 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Play size={28} className="text-indigo-400" />
+      </div>
+      <h2 className="text-white font-bold text-xl mb-2">Join a Meeting</h2>
+      <p className="text-slate-400 text-sm mb-6">Enter the meeting code shared with you</p>
+      <input
+        type="text"
+        value={joinCode}
+        onChange={e => setJoinCode(e.target.value.toUpperCase())}
+        onKeyDown={e => e.key === 'Enter' && handleJoinMeeting()}
+        placeholder="e.g. UUG3AP"
+        maxLength={6}
+        className="w-full bg-[#0f1123] border border-[#2d3155] focus:border-indigo-500 text-white text-center text-2xl font-bold tracking-widest rounded-xl px-4 py-4 mb-6 outline-none uppercase"
+      />
+      <button onClick={handleJoinMeeting}
+        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+        Join Meeting →
+      </button>
+    </div>
+  </div>
+)}
+  </>
+)
 }

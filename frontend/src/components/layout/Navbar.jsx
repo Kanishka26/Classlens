@@ -1,7 +1,8 @@
+import { Zap, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown, Clock } from 'lucide-react'
 import { useContext, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthContext } from '../../context/AuthContext'
-import { Zap, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown } from 'lucide-react'
+
 
 const getNavLinks = (role) => {
   const baseLinks = [
@@ -10,16 +11,20 @@ const getNavLinks = (role) => {
   ]
   
   // Only teachers see analytics and reports
-  if (role === 'teacher') {
+if (role === 'teacher') {
     baseLinks.push(
       { label: 'Analytics', path: '/analytics', icon: <BarChart2 size={16} /> },
       { label: 'Reports', path: '/reports', icon: <FileText size={16} /> }
     )
   }
+  if (role === 'student') {
+    baseLinks.push(
+      { label: 'History', path: '/history', icon: <Clock size={16} /> }
+    )
+  }
   
   return baseLinks
 }
-
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext)
   const navigate = useNavigate()

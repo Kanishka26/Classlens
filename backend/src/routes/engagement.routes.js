@@ -36,6 +36,52 @@ router.post('/', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message }); 
   }
 });
+router.get('/history', verifyToken, async (req, res) => {
+  try {
+    const snap = await db.collection('engagement')
+      .where('studentId', '==', req.user.uid).get()
+
+    const records = snap.docs.map(d => d.data())
+
+    // Group by sessionId
+    const sessionMap = {}
+    records.forEach(r => {
+      if (!sessionMap[r.sessionId]) {
+        sessionMap[r.sessionId] = {
+          sessionId: r.sessionId,
+          date: r.timestamp,
+          scores: []
+        }
+      }
+      sessionMap[r.sessionId].scores.push(r.score)
+      if (r.timestamp < sessionMap[r.sessionId].date) {
+        sessionMap[r.sessionId].date = r.timestamp
+      }
+    })
+
+    // Fetch session names
+    const history = await Promise.all(Object.values(sessionMap).map(async (s) => {
+      let sessionName = 'Meeting'
+      try {
+        const sessionDoc = await db.collection('sessions').doc(s.sessionId).get()
+        if (sessionDoc.exists) sessionName = sessionDoc.data().name
+      } catch (e) {}
+
+      return {
+        sessionId: s.sessionId,
+        sessionName,
+        date: s.date,
+        avgScore: Math.round(s.scores.reduce((a, b) => a + b, 0) / s.scores.length),
+        peakScore: Math.max(...s.scores),
+      }
+    }))
+
+    history.sort((a, b) => new Date(b.date) - new Date(a.date))
+    res.json({ history })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // GET /engagement/:sessionId
 router.get('/:sessionId', verifyToken, async (req, res) => {

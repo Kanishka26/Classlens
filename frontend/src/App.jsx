@@ -8,6 +8,8 @@ import DashboardPage from './pages/DashboardPage'
 import ClassroomsPage from './pages/ClassroomsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ReportsPage from './pages/ReportsPage'
+import HistoryPage from './pages/HistoryPage'
+
 
 function PrivateRoute({ children }) {
   const { user } = useContext(AuthContext)
@@ -19,6 +21,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/history" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
           <Route path="/meet/:sessionId" element={<PrivateRoute><MeetingPage /></PrivateRoute>} />
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />

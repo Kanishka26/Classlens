@@ -46,6 +46,129 @@ router.post('/join', verifyToken, async (req, res) => {
     res.json(snap.docs[0].data());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+// GET /session/students/report
+router.get('/students/report', verifyToken, async (req, res) => {
+  try {
+    const studentsSnap = await db.collection('users')
+      .where('role', '==', 'student').get()
+
+    const students = studentsSnap.docs.map(d => d.data())
+
+    const reports = await Promise.all(students.map(async (student) => {
+      const engSnap = await db.collection('engagement')
+        .where('studentId', '==', student.id).get()
+
+      const records = engSnap.docs.map(d => d.data())
+      const scores = records.map(r => r.score)
+      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+      const peak = scores.length ? Math.max(...scores) : 0
+
+      // Get unique session IDs
+      const sessionIds = [...new Set(records.map(r => r.sessionId))]
+
+      // Fetch session names
+      const sessionDocs = await Promise.all(
+        sessionIds.map(id => db.collection('sessions').doc(id).get())
+      )
+      const sessionNames = sessionDocs
+        .filter(d => d.exists)
+        .map(d => d.data().name)
+
+      return {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        avgScore: avg,
+        peakScore: peak,
+        totalSessions: sessionIds.length,
+        sessions: sessionNames,
+        status: avg >= 75 ? 'Focused' : avg >= 50 ? 'Neutral' : 'At Risk'
+      }
+    }))
+
+    res.json({ students: reports })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+// GET /session/report/sessions
+router.get('/report/sessions', verifyToken, async (req, res) => {
+  try {
+    const snap = await db.collection('sessions')
+      .where('teacherId', '==', req.user.uid).get()
+    
+    const sessions = await Promise.all(snap.docs.map(async (doc) => {
+      const session = doc.data()
+      const engSnap = await db.collection('engagement')
+        .where('sessionId', '==', session.id).get()
+      
+      const records = engSnap.docs.map(d => d.data())
+      const scores = records.map(r => r.score)
+      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+      const peak = scores.length ? Math.max(...scores) : 0
+      const students = [...new Set(records.map(r => r.studentId))].length
+
+      return {
+        id: session.id,
+        name: session.name,
+        channelName: session.channelName,
+        createdAt: session.createdAt,
+        avgScore: avg,
+        peakScore: peak,
+        totalStudents: students,
+        totalRecords: records.length,
+        status: avg >= 75 ? 'High' : avg >= 50 ? 'Medium' : records.length === 0 ? 'No Data' : 'Low'
+      }
+    }))
+
+    res.json({ sessions })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// GET /session/report/weekly
+router.get('/report/weekly', verifyToken, async (req, res) => {
+  try {
+    const snap = await db.collection('sessions')
+      .where('teacherId', '==', req.user.uid).get()
+    
+    const sessions = snap.docs.map(d => d.data())
+    
+    // Group sessions by week
+    const weekMap = {}
+    await Promise.all(sessions.map(async (session) => {
+      const engSnap = await db.collection('engagement')
+        .where('sessionId', '==', session.id).get()
+      
+      const records = engSnap.docs.map(d => d.data())
+      const scores = records.map(r => r.score)
+      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+
+      const date = new Date(session.createdAt)
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() - date.getDay())
+      const weekKey = weekStart.toISOString().split('T')[0]
+      const weekLabel = `Week of ${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+
+      if (!weekMap[weekKey]) {
+        weekMap[weekKey] = { weekKey, weekLabel, sessions: 0, totalScore: 0, students: new Set() }
+      }
+      weekMap[weekKey].sessions++
+      weekMap[weekKey].totalScore += avg
+      records.forEach(r => weekMap[weekKey].students.add(r.studentId))
+    }))
+
+    const weeks = Object.values(weekMap)
+      .sort((a, b) => b.weekKey.localeCompare(a.weekKey))
+      .map(w => ({
+        weekLabel: w.weekLabel,
+        sessions: w.sessions,
+        avgScore: w.sessions ? Math.round(w.totalScore / w.sessions) : 0,
+        totalStudents: w.students.size
+      }))
+
+    res.json({ weeks })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
 
 // GET /session/:id/report
 router.get('/:id/report', verifyToken, async (req, res) => {
