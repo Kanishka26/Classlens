@@ -9,6 +9,7 @@ import ClassroomsPage from './pages/ClassroomsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ReportsPage from './pages/ReportsPage'
 import HistoryPage from './pages/HistoryPage'
+import SettingsPage from './pages/SettingsPage'
 
 
 function PrivateRoute({ children }) {
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/classrooms" element={<PrivateRoute><ClassroomsPage /></PrivateRoute>} />
           <Route path="/analytics" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
           <Route path="/reports" element={<PrivateRoute><ReportsPage /></PrivateRoute>} />
+          <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

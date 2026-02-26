@@ -71,7 +71,7 @@ export default function Navbar() {
 
         {/* Right Side */}
         <div className="flex items-center gap-2 sm:gap-3 relative">
-          <button className="hidden sm:block text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => handleNavClick('/settings')} className="hidden sm:block text-slate-400 hover:text-white transition-colors">
             <Settings size={18} />
           </button>
           
@@ -125,7 +125,7 @@ export default function Navbar() {
             </button>
           ))}
           <div className="pt-2 border-t border-[#2d3155] mt-2">
-            <button className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-[#2d3155]">
+            <button onClick={() => handleNavClick('/settings')} className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-[#2d3155]">
               <Settings size={16} />
               Settings
             </button>
