@@ -55,6 +55,25 @@ const initEngagementSocket = (io) => {
       console.log(`🚪 Left room: session:${sessionId}`);
     });
 
+    socket.on('send_chat', ({ sessionId, senderName, message, timestamp }) => {
+      console.log(`💬 [CHAT RECEIVED] sessionId: ${sessionId}, sender: ${senderName}, message: "${message}"`);
+      
+      if (!sessionId) {
+        console.error('❌ [CHAT] Missing sessionId');
+        return;
+      }
+      
+      // Broadcast message to all participants in the session
+      console.log(`📢 [CHAT BROADCAST] Broadcasting to session:${sessionId}`);
+      io.to(`session:${sessionId}`).emit('chat_message', {
+        senderName,
+        message,
+        timestamp
+      });
+      
+      console.log(`✅ [CHAT] Message emitted to session:${sessionId}`);
+    });
+
     socket.on('disconnect', () => {
       // Clean up all sessions this socket was in
       Object.keys(sessionParticipants).forEach(sessionId => {

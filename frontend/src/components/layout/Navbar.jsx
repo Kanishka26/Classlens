@@ -1,4 +1,4 @@
-import { Zap, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown, Clock } from 'lucide-react'
+import { Zap, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown, Clock, Menu, X } from 'lucide-react'
 import { useContext, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthContext } from '../../context/AuthContext'
@@ -30,72 +30,108 @@ export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   const handleLogout = () => {
     logout()
     setShowDropdown(false)
+    setShowMobileMenu(false)
     navigate('/login')
   }
 
+  const handleNavClick = (path) => {
+    navigate(path)
+    setShowMobileMenu(false)
+  }
+
   return (
-    <nav className="bg-[#1a1d35] border-b border-[#2d3155] px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-      {/* Logo */}
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/dashboard')}>
-        <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-          <Zap size={20} className="text-white" />
+    <>
+      <nav className="bg-[#1a1d35] border-b border-[#2d3155] px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+        {/* Logo */}
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavClick('/dashboard')}>
+          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
+            <Zap size={20} className="text-white" />
+          </div>
+          <span className="text-lg sm:text-xl font-bold text-indigo-400">ClassLens</span>
         </div>
-        <span className="text-xl font-bold text-indigo-400">ClassLens</span>
-      </div>
 
-      {/* Nav Links */}
-      <div className="flex items-center gap-1">
-        {getNavLinks(user?.role).map(link => (
-          <button key={link.path} onClick={() => navigate(link.path)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-              ${location.pathname === link.path
-                ? 'bg-[#2d3155] text-white'
-                : 'text-slate-400 hover:text-white hover:bg-[#2d3155]'}`}>
-            {link.icon}
-            {link.label}
+        {/* Nav Links - Hidden on mobile */}
+        <div className="hidden md:flex items-center gap-1">
+          {getNavLinks(user?.role).map(link => (
+            <button key={link.path} onClick={() => handleNavClick(link.path)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                ${location.pathname === link.path
+                  ? 'bg-[#2d3155] text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-[#2d3155]'}`}>
+              {link.icon}
+              {link.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right Side */}
+        <div className="flex items-center gap-2 sm:gap-3 relative">
+          <button className="hidden sm:block text-slate-400 hover:text-white transition-colors">
+            <Settings size={18} />
           </button>
-        ))}
-      </div>
-
-      {/* Right Side */}
-      <div className="flex items-center gap-3 relative">
-        <button className="text-slate-400 hover:text-white transition-colors">
-          <Settings size={18} />
-        </button>
-        
-        {/* User Dropdown */}
-        <button onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-[#2d3155] transition-colors">
-          <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-            {user?.name?.[0]?.toUpperCase() || 'U'}
-          </div>
-          <div className="text-left hidden sm:block">
-            <p className="text-sm text-slate-300 font-medium">{user?.name || 'User'}</p>
-            <p className="text-xs text-slate-500 capitalize">{user?.role || 'user'}</p>
-          </div>
-          <ChevronDown size={16} className={`text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-        </button>
-
-        {/* Dropdown Menu */}
-        {showDropdown && (
-          <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1d35] border border-[#2d3155] rounded-xl shadow-lg overflow-hidden z-50">
-            <div className="px-4 py-3 border-b border-[#2d3155]">
-              <p className="text-sm font-semibold text-white">{user?.name || 'User'}</p>
-              <p className="text-xs text-slate-400 capitalize mt-1">{user?.role || 'user'} Account</p>
-              <p className="text-xs text-slate-500 mt-2">{user?.email || 'No email'}</p>
+          
+          {/* User Dropdown */}
+          <button onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-[#2d3155] transition-colors">
+            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+              {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
-            <button onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-600/20 transition-colors text-sm font-medium">
-              <LogOut size={16} />
-              Logout
+            <div className="text-left hidden sm:block">
+              <p className="text-sm text-slate-300 font-medium">{user?.name || 'User'}</p>
+              <p className="text-xs text-slate-500 capitalize">{user?.role || 'user'}</p>
+            </div>
+            <ChevronDown size={16} className={`hidden sm:block text-slate-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Mobile Menu Button */}
+          <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="md:hidden p-2 text-slate-400 hover:text-white">
+            {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
+          {/* Dropdown Menu */}
+          {showDropdown && (
+            <div className="absolute top-full right-0 mt-2 w-48 bg-[#1a1d35] border border-[#2d3155] rounded-xl shadow-lg overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-[#2d3155]">
+                <p className="text-sm font-semibold text-white">{user?.name || 'User'}</p>
+                <p className="text-xs text-slate-400 capitalize mt-1">{user?.role || 'user'} Account</p>
+                <p className="text-xs text-slate-500 mt-2">{user?.email || 'No email'}</p>
+              </div>
+              <button onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-600/20 transition-colors text-sm font-medium">
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* Mobile Menu */}
+      {showMobileMenu && (
+        <div className="md:hidden bg-[#1a1d35] border-b border-[#2d3155] px-4 py-3 space-y-2">
+          {getNavLinks(user?.role).map(link => (
+            <button key={link.path} onClick={() => handleNavClick(link.path)}
+              className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left
+                ${location.pathname === link.path
+                  ? 'bg-[#2d3155] text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-[#2d3155]'}`}>
+              {link.icon}
+              {link.label}
+            </button>
+          ))}
+          <div className="pt-2 border-t border-[#2d3155] mt-2">
+            <button className="w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-slate-400 hover:text-white hover:bg-[#2d3155]">
+              <Settings size={16} />
+              Settings
             </button>
           </div>
-        )}
-      </div>
-    </nav>
+        </div>
+      )}
+    </>
   )
 }

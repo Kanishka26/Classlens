@@ -42,23 +42,23 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-[#0f1123]">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-              <TrendingUp size={28} className="text-indigo-400" /> Analytics
+            <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
+              <TrendingUp size={24} className="sm:w-7 sm:h-7 text-indigo-400" /> Analytics
             </h1>
-            <p className="text-slate-400 mt-1">Track engagement trends and student performance.</p>
+            <p className="text-slate-400 text-xs sm:text-sm mt-2">Track engagement trends and student performance.</p>
           </div>
-          <div className="flex gap-3">
-            <select className="bg-[#1a1d35] border border-[#2d3155] text-slate-300 text-sm px-4 py-2 rounded-xl focus:outline-none focus:border-indigo-500">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <select className="bg-[#1a1d35] border border-[#2d3155] text-slate-300 text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl focus:outline-none focus:border-indigo-500">
               <option>All Classrooms</option>
               <option>Physics - Class 12B</option>
               <option>Computer Science - Class 12</option>
             </select>
-            <select className="bg-[#1a1d35] border border-[#2d3155] text-slate-300 text-sm px-4 py-2 rounded-xl focus:outline-none focus:border-indigo-500">
+            <select className="bg-[#1a1d35] border border-[#2d3155] text-slate-300 text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl focus:outline-none focus:border-indigo-500">
               <option>Last 7 days</option>
               <option>Last 30 days</option>
               <option>Last 3 months</option>
@@ -67,28 +67,28 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           {[
-            { label: 'Avg Engagement', value: '78%', sub: '+5% from last week', icon: <TrendingUp size={22} />, color: 'bg-green-600/20 text-green-400', subColor: 'text-green-400' },
-            { label: 'Peak Engagement', value: '100%', sub: 'Best session score', icon: <Award size={22} />, color: 'bg-yellow-600/20 text-yellow-400', subColor: 'text-slate-500' },
-            { label: 'Total Sessions', value: '22', sub: 'Classes conducted', icon: <Calendar size={22} />, color: 'bg-blue-600/20 text-blue-400', subColor: 'text-slate-500' },
-            { label: 'At-Risk Students', value: '5', sub: 'Need attention', icon: <AlertTriangle size={22} />, color: 'bg-red-600/20 text-red-400', subColor: 'text-red-400' },
+            { label: 'Avg Engagement', value: '78%', sub: '+5% from last week', icon: <TrendingUp size={20} />, color: 'bg-green-600/20 text-green-400', subColor: 'text-green-400' },
+            { label: 'Peak Engagement', value: '100%', sub: 'Best session score', icon: <Award size={20} />, color: 'bg-yellow-600/20 text-yellow-400', subColor: 'text-slate-500' },
+            { label: 'Total Sessions', value: '22', sub: 'Classes conducted', icon: <Calendar size={20} />, color: 'bg-blue-600/20 text-blue-400', subColor: 'text-slate-500' },
+            { label: 'At-Risk Students', value: '5', sub: 'Need attention', icon: <AlertTriangle size={20} />, color: 'bg-red-600/20 text-red-400', subColor: 'text-red-400' },
           ].map((stat, i) => (
-            <div key={i} className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-slate-400 text-sm">{stat.label}</p>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>
+            <div key={i} className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-2 sm:mb-3">
+                <p className="text-slate-400 text-xs sm:text-sm">{stat.label}</p>
+                <div className={`w-9 sm:w-10 h-9 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center ${stat.color}`}>
                   {stat.icon}
                 </div>
               </div>
-              <p className="text-3xl font-bold text-white">{stat.value}</p>
-              <p className={`text-xs mt-1 ${stat.subColor}`}>{stat.sub}</p>
+              <p className="text-xl sm:text-3xl font-bold text-white">{stat.value}</p>
+              <p className={`text-xs sm:text-sm mt-1 ${stat.subColor}`}>{stat.sub}</p>
             </div>
           ))}
         </div>
 
         {/* Charts Row 1 */}
-        <div className="grid grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
           {/* Area Chart */}
           <div className="col-span-2 bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
             <h2 className="text-white font-semibold mb-4">Engagement Over Time</h2>
@@ -134,16 +134,16 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Charts Row 2 */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Bar Chart */}
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
-            <h2 className="text-white font-semibold mb-4">Engagement by Time of Day</h2>
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
+            <h2 className="text-white font-semibold mb-3 sm:mb-4 text-sm sm:text-base">Engagement by Time of Day</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={timeOfDayData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2d3155" />
-                <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#1a1d35', border: '1px solid #2d3155', borderRadius: '8px', color: '#fff' }} />
+                <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <Tooltip contentStyle={{ backgroundColor: '#1a1d35', border: '1px solid #2d3155', borderRadius: '8px', color: '#fff', fontSize: '12px' }} />
                 <Bar dataKey="engagement" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -154,27 +154,27 @@ export default function AnalyticsPage() {
 
           {/* Top Performers + Need Attention */}
           <div className="space-y-4">
-            <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
-              <h2 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <h2 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
                 🏆 Top Performers
               </h2>
               <div className="space-y-2">
                 {topPerformers.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">#{i + 1} {s.name}</span>
+                  <div key={i} className="flex items-center justify-between text-xs sm:text-sm">
+                    <span className="text-slate-400">#{i + 1} {s.name}</span>
                     <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full font-medium">{s.avg}%</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
-              <h2 className="text-white font-semibold mb-3 flex items-center gap-2">
+            <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <h2 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
                 ⚠️ Need Attention
               </h2>
               <div className="space-y-2">
                 {needAttention.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">#{i + 1} {s.name}</span>
+                  <div key={i} className="flex items-center justify-between text-xs sm:text-sm">
+                    <span className="text-slate-400">#{i + 1} {s.name}</span>
                     <span className="text-xs bg-red-600/20 text-red-400 px-2 py-0.5 rounded-full font-medium">{s.avg}%</span>
                   </div>
                 ))}

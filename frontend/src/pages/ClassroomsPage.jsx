@@ -199,10 +199,10 @@ export default function ClassroomsPage() {
     return (
       <div className="min-h-screen bg-[#0f1123]">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-center min-h-[80vh]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
             <Loader size={48} className="text-indigo-400 mx-auto mb-4 animate-spin" />
-            <p className="text-slate-400">Loading your classrooms...</p>
+            <p className="text-slate-400 text-sm sm:text-base">Loading your classrooms...</p>
           </div>
         </div>
       </div>
@@ -212,25 +212,25 @@ export default function ClassroomsPage() {
   return (
     <div className="min-h-screen bg-[#0f1123]">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
         
         {/* Error Banner */}
         {error && (
-          <div className="mb-6 bg-red-900/30 border border-red-600/50 rounded-lg px-4 py-3 text-red-300 flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">
+          <div className="mb-6 bg-red-900/30 border border-red-600/50 rounded-lg px-3 sm:px-4 py-3 text-red-300 flex items-center justify-between gap-2">
+            <span className="text-xs sm:text-sm">{error}</span>
+            <button onClick={() => setError('')} className="text-red-400 hover:text-red-300 flex-shrink-0">
               <X size={18} />
             </button>
           </div>
         )}
         
         {/* Header */}
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">
               {user?.role === 'teacher' ? 'My Classrooms' : 'My Classrooms'}
             </h1>
-            <p className="text-slate-400 mt-1">
+            <p className="text-slate-400 text-sm sm:text-base mt-1">
               {user?.role === 'teacher' 
                 ? 'Manage your classes and start live sessions'
                 : 'Classrooms you are enrolled in'}
@@ -238,19 +238,19 @@ export default function ClassroomsPage() {
           </div>
           {user?.role === 'teacher' ? (
             <button onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
-              <Plus size={16} /> New Classroom
+              className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto">
+              <Plus size={16} /> <span className="hidden xs:inline">New Classroom</span>
             </button>
           ) : (
             <button onClick={() => setShowAddClassroomModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors">
-              <Plus size={16} /> Add Classroom
+              className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors w-full sm:w-auto">
+              <Plus size={16} /> <span className="hidden xs:inline">Add Classroom</span>
             </button>
           )}
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6 md:mb-8">
           {user?.role === 'teacher' ? (
             <>
               <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-4 flex items-center gap-3">
@@ -433,10 +433,10 @@ export default function ClassroomsPage() {
 
       {/* New Classroom Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-lg">Create New Classroom</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-0">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl w-full max-w-md p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-white font-bold text-lg sm:text-xl">Create New Classroom</h2>
               <button onClick={() => { setShowModal(false); setFormData({ name: '', description: '' }); setError(''); }}
                 className="text-slate-400 hover:text-white">
                 <X size={20} />
@@ -444,37 +444,37 @@ export default function ClassroomsPage() {
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-900/30 border border-red-600/50 rounded-lg px-3 py-2 text-red-300 text-sm">
+              <div className="mb-4 bg-red-900/30 border border-red-600/50 rounded-lg px-3 py-2 text-red-300 text-xs sm:text-sm">
                 {error}
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-4 sm:space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Classroom Name</label>
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Classroom Name</label>
                 <input type="text" placeholder="e.g., Physics - Class 12B"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
+                  className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+                <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Description</label>
                 <textarea placeholder="e.g., Advanced Physics Course"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
                   rows="3" />
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
               <button onClick={() => { setShowModal(false); setFormData({ name: '', description: '' }); }}
-                className="flex-1 px-4 py-2 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors">
+                className="flex-1 px-4 py-2.5 sm:py-3 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors text-sm font-medium order-2 sm:order-1">
                 Cancel
               </button>
               <button onClick={handleAddClass}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium">
+                className="flex-1 px-4 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium order-1 sm:order-2">
                 Create
               </button>
             </div>
@@ -484,10 +484,10 @@ export default function ClassroomsPage() {
 
       {/* Add Classroom Modal (For Students) */}
       {showAddClassroomModal && user?.role === 'student' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-bold text-lg">Add Classroom</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-0">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl w-full max-w-md p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-white font-bold text-lg sm:text-xl">Add Classroom</h2>
               <button onClick={() => { setShowAddClassroomModal(false); setInviteCode(''); setError(''); }}
                 className="text-slate-400 hover:text-white">
                 <X size={20} />
@@ -495,30 +495,30 @@ export default function ClassroomsPage() {
             </div>
 
             {error && (
-              <div className="mb-4 bg-red-900/30 border border-red-600/50 rounded-lg px-3 py-2 text-red-300 text-sm">
+              <div className="mb-4 bg-red-900/30 border border-red-600/50 rounded-lg px-3 py-2 text-red-300 text-xs sm:text-sm">
                 {error}
               </div>
             )}
 
-            <div className="mb-4">
-              <p className="text-slate-400 text-sm mb-4">Enter the invite code your teacher provided to join a classroom.</p>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Invite Code</label>
+            <div className="mb-6 sm:mb-8">
+              <p className="text-slate-400 text-xs sm:text-sm mb-4">Enter the invite code your teacher provided to join a classroom.</p>
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Invite Code</label>
               <input 
                 type="text" 
                 placeholder="Paste the invite code here"
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={() => { setShowAddClassroomModal(false); setInviteCode(''); }}
-                className="flex-1 px-4 py-2 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors">
+                className="flex-1 px-4 py-2.5 sm:py-3 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors text-sm font-medium order-2 sm:order-1">
                 Cancel
               </button>
               <button onClick={handleJoinWithInviteCode}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium">
+                className="flex-1 px-4 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium order-1 sm:order-2">
                 Join Classroom
               </button>
             </div>
@@ -528,26 +528,26 @@ export default function ClassroomsPage() {
 
       {/* Start Meeting Modal */}
       {showMeetingModal && selectedClassroom && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl w-full max-w-md p-6">
-            <h2 className="text-white font-bold text-lg mb-2">Start Meeting</h2>
-            <p className="text-slate-400 text-sm mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-0">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl w-full max-w-md p-6 sm:p-8">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-2">Start Meeting</h2>
+            <p className="text-slate-400 text-xs sm:text-sm mb-6 sm:mb-8">
               Start a live session for <span className="text-indigo-400 font-semibold">{selectedClassroom.name}</span>
             </p>
 
-            <div className="bg-[#0f1123] rounded-lg p-4 mb-6">
-              <p className="text-slate-400 text-sm mb-2">Classroom Details:</p>
-              <p className="text-white font-medium">{selectedClassroom.name}</p>
-              <p className="text-slate-500 text-sm">{selectedClassroom.students} students enrolled</p>
+            <div className="bg-[#0f1123] rounded-lg p-4 sm:p-5 mb-6 sm:mb-8">
+              <p className="text-slate-400 text-xs sm:text-sm mb-3">Classroom Details:</p>
+              <p className="text-white font-medium text-sm">{selectedClassroom.name}</p>
+              <p className="text-slate-500 text-xs mt-2">{selectedClassroom.students} students enrolled</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={() => setShowMeetingModal(false)}
-                className="flex-1 px-4 py-2 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors">
+                className="flex-1 px-4 py-2.5 sm:py-3 border border-[#2d3155] text-slate-300 rounded-lg hover:bg-[#0f1123] transition-colors text-sm font-medium order-2 sm:order-1">
                 Cancel
               </button>
               <button onClick={confirmStartMeeting}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium">
+                className="flex-1 px-4 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-medium order-1 sm:order-2">
                 Start Meeting
               </button>
             </div>

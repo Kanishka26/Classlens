@@ -116,50 +116,50 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-[#0f1123]">
       <Navbar />
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-            <Clock size={28} className="text-indigo-400" /> My Meeting History
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
+            <Clock size={24} className="sm:w-7 sm:h-7 text-indigo-400" /> My Meeting History
           </h1>
-          <p className="text-slate-400 mt-1">Your personal engagement across all meetings.</p>
+          <p className="text-slate-400 text-xs sm:text-sm mt-2">Your personal engagement across all meetings.</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm mb-1">Avg Engagement</p>
-                <p className={`text-3xl font-bold ${getScoreColor(avgEngagement)}`}>{avgEngagement}%</p>
+                <p className="text-slate-400 text-xs sm:text-sm mb-1">Avg Engagement</p>
+                <p className={`text-2xl sm:text-3xl font-bold ${getScoreColor(avgEngagement)}`}>{avgEngagement}%</p>
               </div>
-              <div className="w-12 h-12 bg-indigo-600/20 rounded-xl flex items-center justify-center">
-                <TrendingUp size={22} className="text-indigo-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-indigo-600/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                <TrendingUp size={20} className="sm:w-6 sm:h-6 text-indigo-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm mb-1">Meetings Attended</p>
-                <p className="text-3xl font-bold text-white">{history.length}</p>
+                <p className="text-slate-400 text-xs sm:text-sm mb-1">Meetings Attended</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white">{history.length}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-600/20 rounded-xl flex items-center justify-center">
-                <Video size={22} className="text-purple-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-purple-600/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Video size={20} className="sm:w-6 sm:h-6 text-purple-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-6">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm mb-1">Best Session</p>
-                <p className="text-3xl font-bold text-green-400">{bestSession?.peakScore || 0}%</p>
+                <p className="text-slate-400 text-xs sm:text-sm mb-1">Best Session</p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-400">{bestSession?.peakScore || 0}%</p>
               </div>
-              <div className="w-12 h-12 bg-green-600/20 rounded-xl flex items-center justify-center">
-                <Award size={22} className="text-green-400" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-green-600/20 rounded-lg sm:rounded-xl flex items-center justify-center">
+                <Award size={20} className="sm:w-6 sm:h-6 text-green-400" />
               </div>
             </div>
           </div>
@@ -167,19 +167,19 @@ export default function HistoryPage() {
 
         {/* Attention Banner */}
         {needsAttention > 0 && (
-          <div className="mb-6 bg-red-600/10 border border-red-600/30 rounded-xl p-4 flex items-center gap-3">
-            <AlertTriangle size={20} className="text-red-400 shrink-0" />
-            <p className="text-red-300 text-sm">
+          <div className="mb-5 sm:mb-6 bg-red-600/10 border border-red-600/30 rounded-lg sm:rounded-xl p-3 sm:p-4 flex items-start gap-3">
+            <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+            <p className="text-red-300 text-xs sm:text-sm">
               You had low engagement in <span className="font-bold text-red-400">{needsAttention} session{needsAttention > 1 ? 's' : ''}</span>. Consider reviewing those topics!
             </p>
           </div>
         )}
 
         {/* History List */}
-        <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-[#2d3155]">
-            <h2 className="text-white font-semibold flex items-center gap-2">
-              <Calendar size={18} className="text-indigo-400" /> All Sessions
+        <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-[#2d3155]">
+            <h2 className="text-white font-semibold text-sm sm:text-base flex items-center gap-2">
+              <Calendar size={16} className="sm:w-5 sm:h-5 text-indigo-400" /> All Sessions
             </h2>
           </div>
 
@@ -190,9 +190,9 @@ export default function HistoryPage() {
           ) : history.length === 0 ? (
             <div className="text-center py-12">
               <Video size={40} className="text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400">No meetings attended yet</p>
+              <p className="text-slate-400 text-sm sm:text-base">No meetings attended yet</p>
               <button onClick={() => navigate('/dashboard')}
-                className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm">
+                className="mt-4 text-indigo-400 hover:text-indigo-300 text-xs sm:text-sm">
                 Go to Dashboard →
               </button>
             </div>
@@ -201,14 +201,14 @@ export default function HistoryPage() {
               {history.map((session, i) => (
                 <div key={i}>
                   <div
-                    className="px-6 py-4 flex items-center justify-between hover:bg-[#0f1123] transition-colors cursor-pointer"
+                    className="px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-[#0f1123] transition-colors cursor-pointer gap-3"
                     onClick={() => setExpanded(expanded === i ? null : i)}>
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-indigo-600/20 rounded-xl flex items-center justify-center">
-                        <Video size={18} className="text-indigo-400" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 sm:w-10 h-8 sm:h-10 bg-indigo-600/20 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Video size={16} className="sm:w-5 sm:h-5 text-indigo-400" />
                       </div>
-                      <div>
-                        <p className="text-white text-sm font-medium">{session.sessionName}</p>
+                      <div className="min-w-0">
+                        <p className="text-white text-xs sm:text-sm font-medium truncate">{session.sessionName}</p>
                         <p className="text-slate-400 text-xs">
                           {new Date(session.date).toLocaleDateString('en-US', {
                             month: 'short', day: 'numeric', year: 'numeric',
@@ -217,34 +217,34 @@ export default function HistoryPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(session.status)}`}>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${getStatusColor(session.status)}`}>
                         {session.status}
                       </span>
-                      <div className="text-right">
+                      <div className="text-right hidden sm:block">
                         <p className={`text-lg font-bold ${getScoreColor(session.avgScore)}`}>{session.avgScore}%</p>
                         <p className="text-slate-500 text-xs">avg engagement</p>
                       </div>
                       {expanded === i
-                        ? <ChevronUp size={16} className="text-slate-400" />
-                        : <ChevronDown size={16} className="text-slate-400" />}
+                        ? <ChevronUp size={16} className="text-slate-400 flex-shrink-0" />
+                        : <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />}
                     </div>
                   </div>
 
                   {/* Expanded Details */}
                   {expanded === i && (
-                    <div className="px-6 pb-4 bg-[#0f1123]">
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="bg-[#1a1d35] rounded-xl p-4 text-center">
-                          <p className={`text-2xl font-bold ${getScoreColor(session.avgScore)}`}>{session.avgScore}%</p>
+                    <div className="px-3 sm:px-6 pb-4 sm:pb-6 bg-[#0f1123]">
+                      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+                        <div className="bg-[#1a1d35] rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                          <p className={`text-xl sm:text-2xl font-bold ${getScoreColor(session.avgScore)}`}>{session.avgScore}%</p>
                           <p className="text-slate-400 text-xs mt-1">Avg Engagement</p>
                         </div>
-                        <div className="bg-[#1a1d35] rounded-xl p-4 text-center">
-                          <p className="text-2xl font-bold text-green-400">{session.peakScore}%</p>
+                        <div className="bg-[#1a1d35] rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                          <p className="text-xl sm:text-2xl font-bold text-green-400">{session.peakScore}%</p>
                           <p className="text-slate-400 text-xs mt-1">Peak Score</p>
                         </div>
-                        <div className="bg-[#1a1d35] rounded-xl p-4 text-center">
-                          <p className="text-2xl font-bold text-white">{session.duration || '—'}</p>
+                        <div className="bg-[#1a1d35] rounded-lg sm:rounded-xl p-3 sm:p-4 text-center">
+                          <p className="text-xl sm:text-2xl font-bold text-white">{session.duration || '—'}</p>
                           <p className="text-slate-400 text-xs mt-1">Minutes</p>
                         </div>
                       </div>
