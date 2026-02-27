@@ -1,7 +1,6 @@
-import { useState, useContext } from 'react'
+import { useState } from 'react'
 import Navbar from '../components/layout/Navbar'
 import { Calendar, Users, TrendingUp, FileText, Download, Eye, Filter, X } from 'lucide-react'
-import { AuthContext } from '../context/AuthContext'
 import jsPDF from 'jspdf'
 
 const typeBadge = (type) => {
@@ -21,7 +20,6 @@ const getStatusColor = (status) => {
 }
 
 export default function ReportsPage() {
-  const { token } = useContext(AuthContext)
   const [modal, setModal] = useState(null) // 'student' | 'session' | 'weekly'
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
@@ -39,8 +37,9 @@ export default function ReportsPage() {
         session: '/session/report/sessions',
         weekly: '/session/report/weekly'
       }
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}${endpoints[type]}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const token = localStorage.getItem('classlens_token')
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}${endpoints[type]}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       const json = await res.json()
       const mockSessions = [
