@@ -342,10 +342,10 @@ export default function MeetingPage() {
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Video Grid */}
-        <div className="flex-1 p-2 sm:p-4 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4">
           {isTeacher && alerts.length > 0 && (
             <div className="mb-3 space-y-1">
               {alerts.map(alert => (
@@ -356,7 +356,7 @@ export default function MeetingPage() {
             </div>
           )}
 
-          <div className={`grid ${gridCols} gap-2 sm:gap-3`}>
+          <div className={`grid ${gridCols} gap-2 sm:gap-3 auto-rows-max`}>
             <StudentTile
               label={`${user?.name || 'You'} (${isTeacher ? 'Teacher' : 'You'})`}
               videoRef={localVideoRef}
