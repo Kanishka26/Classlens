@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 import { AuthContext } from '../context/AuthContext'
 import StudentTile from '../components/meeting/StudentTile'
 import AIMonitorPanel from '../components/meeting/AIMonitorPanel'
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Activity, MessageCircle, Send, X } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Activity, MessageCircle, Send } from 'lucide-react'
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID
 
@@ -13,6 +13,9 @@ export default function MeetingPage() {
   const { sessionId } = useParams()
   const { user } = useContext(AuthContext)
   const navigate = useNavigate()
+  
+  // Define isTeacher early (before useState that uses it)
+  const isTeacher = user?.role === 'teacher'
 
   const [showParticipants, setShowParticipants] = useState(false)
   const [remoteUsers, setRemoteUsers] = useState([])
@@ -32,6 +35,8 @@ export default function MeetingPage() {
   const [showChat, setShowChat] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [sessionName, setSessionName] = useState('Meeting')
+  const [channelName, setChannelName] = useState(null)
+  const [loadingSession, setLoadingSession] = useState(true)
 
   const chatEndRef = useRef(null)
   const clientRef = useRef(null)
@@ -43,21 +48,69 @@ export default function MeetingPage() {
   const agoraUidRef = useRef(null)
   const localTracksRef = useRef({ audio: null, video: null })
 
-  const isTeacher = user?.role === 'teacher'
-
+  // Fetch session details to get the correct Agora channelName
   useEffect(() => {
-    const fetchSession = async () => {
+    let timeoutId;
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    const fetchSessionDetails = async () => {
       try {
         const token = localStorage.getItem('classlens_token')
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/session/${sessionId}/report`, {
-          headers: { Authorization: `Bearer ${token}` }
+        console.log('📡 Fetching session details for:', sessionId, '(Attempt', retryCount + 1, 'of', maxRetries + 1, ')')
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'
+        const url = `${backendUrl}/session/${sessionId}/details`
+        console.log('🔗 URL:', url)
+        
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
-        const data = await res.json()
-        if (data.session?.name) setSessionName(data.session.name)
-      } catch (err) {}
+        
+        console.log('📊 Response status:', res.status, res.statusText)
+        
+        if (res.ok) {
+          const session = await res.json()
+          console.log('✅ Session details fetched:', session)
+          setChannelName(session.channelName)
+          setSessionName(session.name || 'Meeting')
+          setLoadingSession(false)
+        } else if (res.status === 404 && retryCount < maxRetries) {
+          // Retry if 404 - session might not be indexed yet
+          retryCount++
+          console.warn('⚠️ Session not found (404), retrying...', retryCount, '/', maxRetries)
+          setTimeout(fetchSessionDetails, 1000)
+        } else {
+          console.error('❌ Failed to fetch session details:', res.status, res.statusText)
+          alert('Failed to fetch session details: ' + res.status + ' ' + res.statusText)
+          setLoadingSession(false)
+        }
+      } catch (err) {
+        if (retryCount < maxRetries) {
+          retryCount++
+          console.warn('⚠️ Error fetching session, retrying...', err.message)
+          setTimeout(fetchSessionDetails, 2000)
+        } else {
+          console.error('❌ Error fetching session details:', err)
+          alert('Error fetching session: ' + err.message)
+          setLoadingSession(false)
+        }
+      }
     }
-    fetchSession()
-  }, [sessionId])
+    
+    console.log('🚀 Starting session details fetch for sessionId:', sessionId)
+    fetchSessionDetails()
+    
+    // Safety timeout - if session details don't load in 30 seconds, show error
+    timeoutId = setTimeout(() => {
+      if (loadingSession) {
+        console.error('⏱️ Session details fetch timeout after', maxRetries, 'retries')
+        setLoadingSession(false)
+        alert('Session is taking too long to load. Please refresh and try again.')
+      }
+    }, 30000)
+    
+    return () => clearTimeout(timeoutId)
+  }, [sessionId, loadingSession])
 
   useEffect(() => {
     const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' })
@@ -69,11 +122,16 @@ export default function MeetingPage() {
     socketRef.current = socket
 
     socket.on('connect', () => {
-      socket.emit('join_session', { sessionId, role: user?.role, name: user?.name })
+      socket.emit('join_session', { sessionId, userId: user?.id, role: user?.role, name: user?.name })
     })
 
     socket.on('existing_participants', ({ participants }) => {
-      setSocketParticipants(participants)
+      setSocketParticipants(prev => {
+        // Merge: keep any participants not in the existing list, then add existing ones
+        const existingNames = new Set(participants.map(p => `${p.name}-${p.role}`))
+        const filtered = prev.filter(p => !existingNames.has(`${p.name}-${p.role}`))
+        return [...filtered, ...participants]
+      })
       setStudentNames(prev => {
         const updated = { ...prev }
         participants.forEach(p => { updated[p.agoraUid] = p.name })
@@ -83,8 +141,11 @@ export default function MeetingPage() {
 
     socket.on('participant_agora_uid', ({ agoraUid, name, role }) => {
       setSocketParticipants(prev => {
-        if (prev.find(p => p.agoraUid === agoraUid)) return prev
-        return [...prev, { agoraUid, name, role }]
+        // Remove any stale entry with same name+role but different agoraUid (handles reloads)
+        const filtered = prev.filter(p => !(p.name === name && p.role === role && p.agoraUid !== agoraUid))
+        // Add new entry if not already there
+        if (filtered.find(p => p.agoraUid === agoraUid)) return filtered
+        return [...filtered, { agoraUid, name, role }]
       })
       setStudentNames(prev => ({ ...prev, [agoraUid]: name }))
     })
@@ -133,19 +194,34 @@ export default function MeetingPage() {
       setRemoteUsers(prev => prev.filter(u => u.uid !== remoteUser.uid))
       setVideoOffUsers(prev => { const next = new Set(prev); next.delete(remoteUser.uid); return next })
       setEngagementMap(prev => { const n = { ...prev }; delete n[remoteUser.uid]; return n })
+      // Also remove from socketParticipants when user leaves Agora (as a fallback)
+      setSocketParticipants(prev => prev.filter(p => p.agoraUid !== remoteUser.uid))
     })
 
-    joinChannel(client)
-    return () => { socket.disconnect(); leaveChannel() }
-  }, [])
+    return () => { 
+      socket.emit('leave_session', { sessionId })
+      socket.disconnect()
+      leaveChannel() 
+    }
+  }, [sessionId])
+
+  // Join Agora channel once we have the correct channelName
+  useEffect(() => {
+    if (channelName && clientRef.current) {
+      console.log('🔌 Starting to join Agora channel:', channelName)
+      joinChannel(clientRef.current)
+    }
+  }, [channelName])
 
   const joinChannel = async (client) => {
     try {
-      const uid = await client.join(APP_ID, sessionId, null, null)
+      console.log('🎥 Joining Agora channel with name:', channelName)
+      const uid = await client.join(APP_ID, channelName, null, null)
+      console.log('✅ Successfully joined Agora, UID:', uid)
       agoraUidRef.current = uid
       setAgoraUid(uid)
       if (socketRef.current) {
-        socketRef.current.emit('send_agora_uid', { sessionId, agoraUid: uid, name: user?.name, role: user?.role })
+        socketRef.current.emit('send_agora_uid', { sessionId, agoraUid: uid, userId: user?.id, name: user?.name, role: user?.role })
       }
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks()
       setLocalTracks({ audio: audioTrack, video: videoTrack })
@@ -155,7 +231,7 @@ export default function MeetingPage() {
       setJoined(true)
       if (!isTeacher) startEngagementAnalysis(videoTrack)
     } catch (err) {
-      console.error('Failed to join:', err)
+      console.error('❌ Failed to join:', err)
       setJoined(true)
     }
   }
@@ -239,6 +315,12 @@ export default function MeetingPage() {
   }
 
   const handleLeave = async () => {
+    // Notify others that we're leaving
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('leave_session', { sessionId })
+      // Give socket time to send the message
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
     await leaveChannel()
     navigate('/dashboard')
   }
@@ -261,11 +343,45 @@ export default function MeetingPage() {
     .map(p => ({ uid: p.agoraUid, name: studentNames[p.agoraUid] || p.name || `Student ${String(p.agoraUid).slice(0, 6)}` }))
 
   const totalTiles = socketParticipants.length || 1
-  const gridCols = totalTiles === 1 ? 'grid-cols-1' :
-    totalTiles === 2 ? 'grid-cols-1 sm:grid-cols-2' :
-    totalTiles === 3 ? 'grid-cols-1 sm:grid-cols-3' :
-    totalTiles === 4 ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4' :
-    totalTiles <= 6 ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+  
+  // Responsive grid configuration based on participant count
+  let gridContainerClass = 'w-full h-full'
+  let gridClass = 'grid-cols-1'
+  let gridRows = 'auto-rows-max'
+  let gridGapClass = 'gap-2 sm:gap-4'
+  let isCentered = true
+  
+  if (totalTiles === 1) {
+    // Single user: centered, no scroll
+    gridClass = 'grid-cols-1'
+    gridRows = 'auto-rows-max'
+    gridContainerClass = 'w-full h-full flex justify-center items-center'
+    isCentered = true
+  } else if (totalTiles === 2) {
+    // Two users: split 50/50 both ways
+    gridClass = 'grid-cols-2'
+    gridRows = 'auto-rows-fr'
+    gridContainerClass = 'w-full h-full'
+    isCentered = false
+  } else if (totalTiles === 3) {
+    // Three users: 2-3 grid
+    gridClass = 'grid-cols-2 xl:grid-cols-3'
+    gridRows = 'auto-rows-fr'
+    gridContainerClass = 'w-full h-full'
+    isCentered = false
+  } else if (totalTiles === 4) {
+    // Four users: 2x2 grid
+    gridClass = 'grid-cols-2'
+    gridRows = 'auto-rows-fr'
+    gridContainerClass = 'w-full h-full'
+    isCentered = false
+  } else {
+    // 5+ users: responsive columns
+    gridClass = 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+    gridRows = 'auto-rows-fr'
+    gridContainerClass = 'w-full h-full'
+    isCentered = false
+  }
 
   if (!joined) {
     return (
@@ -345,9 +461,9 @@ export default function MeetingPage() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Video Grid */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {isTeacher && alerts.length > 0 && (
-            <div className="mb-3 space-y-1">
+            <div className="absolute top-24 left-4 right-4 z-10 space-y-1">
               {alerts.map(alert => (
                 <div key={alert.id} className="bg-orange-900/50 border border-orange-600/50 rounded-lg px-3 py-2 text-xs sm:text-sm text-orange-200 flex items-start gap-2">
                   ⚠️ <span><strong>{alert.studentName}</strong> dropped to {alert.score}% — consider re-engaging!</span>
@@ -356,7 +472,7 @@ export default function MeetingPage() {
             </div>
           )}
 
-          <div className={`grid ${gridCols} gap-2 sm:gap-3 auto-rows-max`}>
+          <div className={`grid ${gridClass} ${gridRows} ${gridGapClass} ${gridContainerClass} p-2 sm:p-4`}>
             <StudentTile
               label={`${user?.name || 'You'} (${isTeacher ? 'Teacher' : 'You'})`}
               videoRef={localVideoRef}
@@ -413,30 +529,30 @@ export default function MeetingPage() {
               ) : chatMessages.map((msg, i) => (
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-glow">
                       {msg.senderName[0]?.toUpperCase()}
                     </div>
-                    <span className="text-white text-xs font-semibold truncate">{msg.senderName}</span>
-                    <span className="text-slate-500 text-xs shrink-0">{msg.timestamp}</span>
+                    <span className="text-gray-100 text-xs font-semibold truncate">{msg.senderName}</span>
+                    <span className="text-gray-500 text-xs shrink-0">{msg.timestamp}</span>
                   </div>
-                  <p className="text-slate-300 text-sm ml-8 break-words">{msg.message}</p>
+                  <p className="text-gray-300 text-sm ml-8 break-words">{msg.message}</p>
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
-            <div className="p-3 sm:p-4 border-t border-[#2d3155] flex gap-2 shrink-0">
+            <div className="p-3 sm:p-4 border-t border-dark-700/40 flex gap-2 shrink-0 bg-gradient-to-r from-dark-800 to-dark-800/50">
               <input
                 type="text"
                 placeholder="Type a message..."
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && sendChatMessage()}
-                className="flex-1 bg-[#0f1123] border border-[#2d3155] rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-w-0"
+                className="flex-1 bg-dark-700/50 border border-dark-600/50 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 min-w-0 transition-colors"
               />
               <button
                 onClick={sendChatMessage}
                 disabled={!chatInput.trim()}
-                className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 text-white rounded-lg transition-colors shrink-0">
+                className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-all shadow-glow font-medium shrink-0">
                 <Send size={16} />
               </button>
             </div>

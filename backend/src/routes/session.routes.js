@@ -9,21 +9,67 @@ function generateRoomCode() {
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+// ===== SPECIFIC NAMED ROUTES (must come BEFORE /:id routes) =====
+
 // POST /session/create
 router.post('/create', verifyToken, async (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'Session name required' });
+  const { name, classroomId } = req.body;
+  console.log('🔔 [SESSION] POST /create called')
+  console.log('   User:', req.user.uid)
+  console.log('   Request body:', req.body)
+  
+  if (!name) {
+    console.error('❌ [SESSION] Session name required')
+    return res.status(400).json({ error: 'Session name required' });
+  }
   try {
+    // If classroomId provided, check for an existing recent session for this classroom
+    if (classroomId) {
+      const existingSnap = await db.collection('sessions')
+        .where('classroomId', '==', classroomId)
+        .get();
+      const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+      const existing = existingSnap.docs
+        .map(d => d.data())
+        .find(s => new Date(s.createdAt).getTime() > twoHoursAgo);
+      if (existing) {
+        console.log('♻️ [SESSION] Found existing active session for classroom:', classroomId, '->', existing.id)
+        return res.json(existing);
+      }
+    }
+
     const session = {
       id: uuidv4(), name,
       channelName: generateRoomCode(),
       teacherId: req.user.uid,
+      classroomId: classroomId || null,
       createdAt: new Date().toISOString(),
       status: 'created'
     };
-    await db.collection('sessions').doc(session.id).set(session);
+    console.log('📝 [SESSION] Creating session:', session)
+    
+    // Actually write to Firestore
+    const writeResult = await db.collection('sessions').doc(session.id).set(session);
+    console.log('✅ [SESSION] Session created and saved to Firestore:', session.id)
+    console.log('   Channel Name:', session.channelName)
+    console.log('   Teacher ID:', session.teacherId)
+    
+    // Verify the write by reading it back
+    const verification = await db.collection('sessions').doc(session.id).get();
+    if (verification.exists) {
+      console.log('✔️ [SESSION] Verification: Session exists in Firestore:', verification.data())
+    } else {
+      console.error('❌ [SESSION] Verification failed: Session not found in Firestore after write!')
+    }
+    
+    console.log('📤 [SESSION] Sending response:', session)
     res.json(session);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('❌ [SESSION] Error creating session:', err)
+    console.error('   Error message:', err.message)
+    console.error('   Error stack:', err.stack)
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // GET /session
@@ -46,6 +92,7 @@ router.post('/join', verifyToken, async (req, res) => {
     res.json(snap.docs[0].data());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
 // GET /session/students/report
 router.get('/students/report', verifyToken, async (req, res) => {
   try {
@@ -91,6 +138,7 @@ router.get('/students/report', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message })
   }
 })
+
 // GET /session/report/sessions
 router.get('/report/sessions', verifyToken, async (req, res) => {
   try {
@@ -167,8 +215,45 @@ router.get('/report/weekly', verifyToken, async (req, res) => {
       }))
 
     res.json({ weeks })
-  } catch (err) { res.status(500).json({ error: err.message }) }
-})
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /session/active/classroom/:classroomId - Find active session for a specific classroom
+router.get('/active/classroom/:classroomId', verifyToken, async (req, res) => {
+  try {
+    const { classroomId } = req.params;
+    console.log('🔍 [SESSION] Looking for active session for classroom:', classroomId);
+    const snap = await db.collection('sessions')
+      .where('classroomId', '==', classroomId)
+      .get();
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    const active = snap.docs
+      .map(d => d.data())
+      .find(s => new Date(s.createdAt).getTime() > twoHoursAgo);
+    if (active) {
+      console.log('✅ [SESSION] Found active session:', active.id, 'channel:', active.channelName);
+      return res.json({ found: true, session: active });
+    }
+    console.log('⚠️ [SESSION] No active session for classroom:', classroomId);
+    res.json({ found: false });
+  } catch (err) {
+    console.error('❌ [SESSION] Error finding active session:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /session/active/all - Get all active sessions for any classroom
+router.get('/active/all', verifyToken, async (req, res) => {
+  try {
+    const sessionsSnap = await db.collection('sessions').get();
+    const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json({ success: true, data: sessions });
+  } catch (err) { 
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
+// ===== DYNAMIC ID ROUTES (must come AFTER specific named routes) =====
 
 // GET /session/:id/report
 router.get('/:id/report', verifyToken, async (req, res) => {
@@ -189,6 +274,43 @@ router.get('/:id/report', verifyToken, async (req, res) => {
       totalRecords: records.length
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /session/:id/details - Get session channelName for joining Agora
+router.get('/:id/details', verifyToken, async (req, res) => {
+  try {
+    console.log('📡 [SESSION] GET /:id/details called')
+    console.log('   Session ID:', req.params.id)
+    console.log('   User:', req.user.uid)
+    
+    const sessionDoc = await db.collection('sessions').doc(req.params.id).get();
+    
+    if (!sessionDoc.exists) {
+      console.error('❌ [SESSION] Session not found in Firestore:', req.params.id)
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const session = sessionDoc.data();
+    console.log('✅ [SESSION] Session found:', {
+      id: session.id,
+      name: session.name,
+      channelName: session.channelName,
+      teacherId: session.teacherId,
+      status: session.status
+    })
+    
+    res.json({
+      id: session.id,
+      name: session.name,
+      channelName: session.channelName,
+      teacherId: session.teacherId,
+      status: session.status
+    });
+  } catch (err) { 
+    console.error('❌ [SESSION] Error fetching session details:', err);
+    console.error('   Error message:', err.message);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 module.exports = router;

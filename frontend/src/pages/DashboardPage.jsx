@@ -27,12 +27,6 @@ const mockStudentClasses = [
   { id: '3', name: 'Mathematics - Class 11A', teacher: 'Mr. Kumar', color: 'bg-green-600', status: 'completed', engagement: 82 },
 ]
 
-const quickActions = [
-  { label: 'Create New Class', icon: <Plus size={16} /> },
-  { label: 'Start Instant Meeting', icon: <Video size={16} /> },
-  { label: 'View Analytics', icon: <BarChart2 size={16} /> },
-  { label: 'Generate Reports', icon: <FileText size={16} /> },
-]
 function CopyButton({ code }) {
   const [copied, setCopied] = useState(false)
   return (
@@ -56,39 +50,145 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const [sessions] = useState(mockSessions)
   const [liveSessions] = useState(mockLiveSessions)
-  const [enrolledClassrooms, setEnrolledClassrooms] = useState(mockStudentClasses)
+  const [enrolledClassrooms, setEnrolledClassrooms] = useState([])
+  const [teacherClassrooms, setTeacherClassrooms] = useState([])
   const [meetingCode, setMeetingCode] = useState(null)
   const [pendingMeetingId, setPendingMeetingId] = useState(null)
   const [joinCode, setJoinCode] = useState('')
   const [showJoinModal, setShowJoinModal] = useState(false)
+  const [joiningClass, setJoiningClass] = useState(null)
 
-  // Fetch enrolled classrooms for students
+  // Fetch classrooms based on user role
   useEffect(() => {
-    if (user?.role === 'student') {
+    if (user?.role === 'teacher') {
+      fetchTeacherClassrooms()
+    } else if (user?.role === 'student') {
       fetchEnrolledClassrooms()
+      // Poll for classroom status updates every 30 seconds (reduced to save Firestore quota)
+      const pollInterval = setInterval(() => {
+        fetchEnrolledClassrooms()
+      }, 30000)
+      return () => clearInterval(pollInterval)
     }
   }, [user])
+
+  const fetchTeacherClassrooms = async () => {
+    try {
+      const token = localStorage.getItem('classlens_token')
+      const res = await fetch(`${BACKEND_URL}/classrooms`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const { data: classrooms } = data
+        console.log('📚 Teacher classrooms:', classrooms)
+        
+        const formattedClasses = classrooms.map(cls => ({
+          id: cls.id,
+          sessionId: null,
+          name: cls.name,
+          teacher: user?.name,
+          color: cls.color || 'bg-indigo-600',
+          status: 'upcoming',
+          engagement: Math.floor(Math.random() * 30 + 70)
+        }))
+        
+        setTeacherClassrooms(formattedClasses)
+      } else {
+        console.error('❌ Failed to fetch teacher classrooms:', res.status)
+      }
+    } catch (err) {
+      console.error('❌ Error fetching teacher classrooms:', err)
+    }
+  }
 
   const fetchEnrolledClassrooms = async () => {
     try {
       const token = localStorage.getItem('classlens_token')
-      const response = await fetch(`${BACKEND_URL}/classrooms/enrolled/all`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      
+      // Fetch both classrooms and sessions in parallel
+      const [classroomsRes, sessionsRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/classrooms/enrolled/all`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${BACKEND_URL}/session/active/all`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
 
-      if (response.ok) {
-        const { data } = await response.json()
+      console.log('📊 Classrooms response:', classroomsRes.status, classroomsRes.ok)
+      console.log('📊 Sessions response:', sessionsRes.status, sessionsRes.ok)
+
+      if (classroomsRes.ok && sessionsRes.ok) {
+        const classroomsData = await classroomsRes.json()
+        const sessionsData = await sessionsRes.json()
+        
+        const { data: classrooms } = classroomsData
+        const { data: sessions } = sessionsData
+        
+        console.log('📚 Enrolled classrooms:', classrooms)
+        console.log('🎬 Active sessions:', sessions)
+        
+        // Create a map of teacher ID to active sessions for quick lookup
+        const activeSessionsByTeacher = {}
+        sessions.forEach(session => {
+          const teacherId = session.teacherId
+          if (!activeSessionsByTeacher[teacherId]) {
+            activeSessionsByTeacher[teacherId] = []
+          }
+          // Only count sessions created in the last 2 hours as "active"
+          const createdTime = new Date(session.createdAt).getTime()
+          const now = new Date().getTime()
+          if (now - createdTime < 2 * 60 * 60 * 1000) {
+            activeSessionsByTeacher[teacherId].push(session)
+          }
+        })
+        
+        console.log('🔍 Active sessions by teacher:', activeSessionsByTeacher)
+        
         // Convert to dashboard format
-        const formattedClasses = data.map(cls => ({
-          id: cls.id,
-          name: cls.name,
-          teacher: cls.teacherName,
-          color: cls.color,
-          status: 'upcoming', // This would be determined by session data
-          engagement: Math.floor(Math.random() * 30 + 70),
-          nextClass: 'TBD'
-        }))
+        const formattedClasses = classrooms.map(cls => {
+          // Check if this classroom's teacher has any active sessions
+          const teacherSessions = activeSessionsByTeacher[cls.teacherId] || []
+          const status = teacherSessions.length > 0 ? 'live' : 'upcoming'
+          const activeSession = teacherSessions.length > 0 ? teacherSessions[0] : null
+          
+          return {
+            id: cls.id,
+            sessionId: activeSession?.id || null, // Session ID for joining
+            name: cls.name,
+            teacher: cls.teacherName,
+            color: cls.color,
+            status: status,
+            engagement: Math.floor(Math.random() * 30 + 70),
+            nextClass: 'TBD'
+          }
+        })
+        
+        console.log('✅ Formatted classrooms:', formattedClasses)
         setEnrolledClassrooms(formattedClasses)
+      } else {
+        console.error('❌ Failed to fetch:', {
+          classrooms: classroomsRes.status,
+          sessions: sessionsRes.status
+        })
+        // Still try to show classrooms even if sessions fetch fails
+        if (classroomsRes.ok) {
+          const classroomsData = await classroomsRes.json()
+          const { data: classrooms } = classroomsData
+          const formattedClasses = classrooms.map(cls => ({
+            id: cls.id,
+            sessionId: null,
+            name: cls.name,
+            teacher: cls.teacherName,
+            color: cls.color,
+            status: 'upcoming',
+            engagement: Math.floor(Math.random() * 30 + 70),
+            nextClass: 'TBD'
+          }))
+          setEnrolledClassrooms(formattedClasses)
+        }
       }
     } catch (err) {
       console.error('❌ Error fetching enrolled classrooms:', err)
@@ -106,50 +206,165 @@ export default function DashboardPage() {
     if (score >= 50) return 'bg-yellow-600/20'
     return 'bg-red-600/20'
   }
-const handleStartInstantMeeting = async () => {
-  try {
-    const token = localStorage.getItem('classlens_token')
-    const res = await fetch(`${BACKEND_URL}/session/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        name: `${user?.name}'s Instant Meeting`,
-        classroomId: 'instant'
+
+  const handleStartInstantMeeting = async () => {
+    try {
+      const token = localStorage.getItem('classlens_token')
+      console.log('🚀 Starting instant meeting...')
+      const res = await fetch(`${BACKEND_URL}/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: `${user?.name}'s Instant Meeting`
+        })
       })
-    })
-    const data = await res.json()
-    if (data.id) {
-      setMeetingCode(data.channelName)
-      setPendingMeetingId(data.id)
+      
+      if (!res.ok) {
+        console.error('❌ Failed to create instant meeting:', res.status, res.statusText)
+        alert('Failed to create meeting: ' + res.status + ' ' + res.statusText)
+        return
+      }
+      
+      const data = await res.json()
+      console.log('✅ Instant meeting created:', data)
+      
+      if (data.id) {
+        setMeetingCode(data.channelName)
+        setPendingMeetingId(data.id)
+      } else {
+        console.error('❌ No session ID in response:', data)
+        alert('Failed to create meeting. No ID returned.')
+      }
+    } catch (err) {
+      console.error('Failed to start meeting:', err)
+      alert('Error starting meeting: ' + err.message)
     }
-  } catch (err) {
-    console.error('Failed to start meeting:', err)
   }
-}
+
 const handleJoinMeeting = async () => {
   if (!joinCode.trim()) return
   try {
     const token = localStorage.getItem('classlens_token')
+    console.log('🔗 Joining meeting with code:', joinCode.trim().toUpperCase())
     const res = await fetch(`${BACKEND_URL}/session/join`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ channelName: joinCode.trim().toUpperCase() })
+      body: JSON.stringify({ code: joinCode.trim().toUpperCase() })
     })
     const data = await res.json()
-    if (data.session?.id) {
+    console.log('📦 Join response:', data)
+    if (data.id) {
       setShowJoinModal(false)
-      navigate(`/meet/${data.session.id}`)
+      navigate(`/meet/${data.id}`)
     } else {
       alert('Meeting not found! Check the code and try again.')
     }
   } catch (err) {
     console.error('Failed to join meeting:', err)
+    alert('Error joining meeting: ' + err.message)
+  }
+}
+
+const handleJoinClass = async (cls) => {
+  if (cls.status === 'completed') return
+  
+  setJoiningClass(cls.id)
+  try {
+    const token = localStorage.getItem('classlens_token')
+    
+    // Teachers can create new sessions
+    if (user?.role === 'teacher') {
+      console.log('📝 Creating new session for:', cls.name)
+      const res = await fetch(`${BACKEND_URL}/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: cls.name, classroomId: cls.id })
+      })
+      
+      if (!res.ok) {
+        console.error('❌ Failed to create session:', res.status, res.statusText)
+        alert('Failed to create session: ' + res.status + ' ' + res.statusText)
+        setJoiningClass(null)
+        return
+      }
+      
+      const data = await res.json()
+      console.log('✅ Session created:', data)
+      
+      if (data.id) {
+        console.log('🚀 Navigating to meeting:', data.id)
+        navigate(`/meet/${data.id}`)
+      } else {
+        console.error('❌ No session ID in response:', data)
+        alert('Failed to create session. No ID returned.')
+        setJoiningClass(null)
+      }
+    } else {
+      // Students: join existing session, or find/create one
+      if (cls.sessionId) {
+        console.log('✅ Joining existing session:', cls.sessionId)
+        navigate(`/meet/${cls.sessionId}`)
+      } else {
+        // Fresh real-time check for an active session (polling may be stale)
+        console.log('🔍 Checking for active session for classroom:', cls.id)
+        try {
+          const checkRes = await fetch(`${BACKEND_URL}/session/active/classroom/${cls.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          if (checkRes.ok) {
+            const checkData = await checkRes.json()
+            if (checkData.found && checkData.session?.id) {
+              console.log('✅ Found active session via fresh check:', checkData.session.id)
+              navigate(`/meet/${checkData.session.id}`)
+              return
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Fresh session check failed, will create new:', e.message)
+        }
+
+        // No active session found — create one (backend will also double-check)
+        console.log('📝 No active session found — creating one...')
+        const res = await fetch(`${BACKEND_URL}/session/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: cls.name, classroomId: cls.id })
+        })
+        
+        if (!res.ok) {
+          console.error('❌ Failed to create session:', res.status, res.statusText)
+          alert('Failed to start session: ' + res.status + ' ' + res.statusText)
+          setJoiningClass(null)
+          return
+        }
+        
+        const data = await res.json()
+        console.log('✅ Session found/created:', data)
+        
+        if (data.id) {
+          navigate(`/meet/${data.id}`)
+        } else {
+          alert('Failed to create session. No ID returned.')
+          setJoiningClass(null)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('❌ Failed to join class:', err)
+    alert('Error joining class: ' + err.message)
+    setJoiningClass(null)
   }
 }
   // Student Dashboard Component
@@ -205,8 +420,9 @@ const handleJoinMeeting = async () => {
                       {cls.engagement}%
                     </p>
                   </div>
-                  <button onClick={() => navigate(`/meet/${cls.id}`)}
-                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition-colors text-sm font-medium mt-auto">
+                  <button 
+                    onClick={() => handleJoinClass(cls)}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg transition-colors text-sm font-medium mt-auto bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">
                     <Play size={14} /> Join Now
                   </button>
                 </div>
@@ -254,8 +470,15 @@ const handleJoinMeeting = async () => {
                   </div>
                 )}
 
-                <button onClick={() => navigate(`/meet/${cls.id}`)} className="w-full text-indigo-400 hover:text-indigo-300 text-sm font-medium py-2 rounded-lg hover:bg-[#1a1d35] transition-colors">
-                  {cls.status === 'live' ? 'Join Class' : cls.status === 'upcoming' ? 'Mark as Interested' : 'View Details'}
+                <button 
+                  onClick={() => handleJoinClass(cls)} 
+                  disabled={cls.status === 'completed' || joiningClass === cls.id} 
+                  className={`w-full text-sm font-medium py-2 rounded-lg transition-colors ${
+                    cls.status !== 'completed'
+                      ? 'text-indigo-400 hover:text-indigo-300 hover:bg-[#1a1d35] cursor-pointer' 
+                      : 'text-slate-500 cursor-not-allowed opacity-60'
+                  }`}>
+                  {joiningClass === cls.id ? 'Joining...' : cls.status === 'completed' ? 'Class Completed' : 'Join Class'}
                 </button>
               </div>
             ))}
@@ -312,7 +535,13 @@ const handleJoinMeeting = async () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
-              Welcome back, <span className="text-indigo-400">{user?.name?.split(' ')[0] || 'Teacher'}</span>
+              Welcome back, <span style={{
+                background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                display: 'inline-block'
+              }}>{user?.name?.split(' ')[0] || 'Teacher'}</span>
             </h1>
             <p className="text-slate-400 text-sm sm:text-base mt-1">Here's what's happening with your classes today.</p>
           </div>
@@ -320,73 +549,27 @@ const handleJoinMeeting = async () => {
             <button onClick={() => navigate('/classrooms')} className="flex items-center justify-center gap-2 border border-[#2d3155] text-slate-300 hover:text-white hover:border-indigo-500 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors">
               <Plus size={16} /> <span className="hidden sm:inline">New Class</span>
             </button>
-            <button onClick={() => navigate('/classrooms')} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors">
-              <Video size={16} /> <span className="hidden sm:inline">Start Meeting</span>
-            </button>
+            <div className="flex gap-2 sm:gap-3">
+              <button onClick={() => setShowJoinModal(true)} className="flex items-center justify-center gap-2 border border-[#2d3155] text-slate-300 hover:text-white hover:border-indigo-500 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors">
+                <Play size={16} /> <span className="hidden sm:inline">Join Meeting</span>
+              </button>
+              <button onClick={handleStartInstantMeeting} className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors">
+                <Video size={16} /> <span className="hidden sm:inline">Start Meeting</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Live Class Status */}
-        {liveSessions.length > 0 && (
-          <div className="mb-6 md:mb-8 bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4">
-              <h2 className="text-white font-semibold flex items-center gap-2 text-sm sm:text-base">
-                <Radio size={18} className="text-red-500 animate-pulse" /> Live Classes
-              </h2>
-              <span className="text-xs bg-red-600/20 text-red-400 px-3 py-1 rounded-full font-medium">
-                {liveSessions.length} Active
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {liveSessions.map(session => (
-                <div key={session.id} className="bg-[#0f1123] rounded-lg border border-red-600/20 p-3 sm:p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 ${session.color} rounded-lg flex items-center justify-center text-white font-bold text-sm relative`}>
-                        {session.name[0]}
-                        <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-                      </div>
-                      <div>
-                        <p className="text-white text-sm font-medium">{session.name}</p>
-                        <p className="text-red-400 text-xs font-medium flex items-center gap-1">
-                          <Radio size={10} className="animate-pulse" /> LIVE NOW
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[#1a1d35] rounded-lg p-2 sm:p-3 text-center">
-                      <p className="text-slate-500 text-xs mb-1">Participants</p>
-                      <p className="text-white font-bold text-sm sm:text-lg flex items-center justify-center gap-1">
-                        <Users size={14} /> {session.participants}
-                      </p>
-                    </div>
-                    <div className={`${getEngagementBg(session.engagement)} rounded-lg p-2 sm:p-3 text-center`}>
-                      <p className="text-slate-400 text-xs mb-1">Avg Engagement</p>
-                      <p className={`font-bold text-sm sm:text-lg ${getEngagementColor(session.engagement)}`}>
-                        {session.engagement}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <button onClick={() => navigate(`/meet/${session.id}`)}
-                    className="w-full mt-3 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium">
-                    <Play size={14} /> Join Live Session
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Removed: Using real classroom data instead of mock liveSessions */}
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 md:mb-8">
           {[
-            { label: 'Total Classes', value: sessions.length, icon: <BookOpen size={22} />, color: 'bg-indigo-600/20 text-indigo-400' },
-            { label: 'Total Students', value: sessions.reduce((a, s) => a + s.students, 0), icon: <Users size={22} />, color: 'bg-purple-600/20 text-purple-400' },
-            { label: 'Sessions Held', value: 21, icon: <Video size={22} />, color: 'bg-blue-600/20 text-blue-400' },
-            { label: 'Avg Engagement', value: '77%', icon: <TrendingUp size={22} />, color: 'bg-green-600/20 text-green-400' },
+            { label: 'Total Classes', value: teacherClassrooms.length, icon: <BookOpen size={22} />, color: 'bg-indigo-600/20 text-indigo-400' },
+            { label: 'Total Students', value: 0, icon: <Users size={22} />, color: 'bg-purple-600/20 text-purple-400' },
+            { label: 'Sessions Held', value: 0, icon: <Video size={22} />, color: 'bg-blue-600/20 text-blue-400' },
+            { label: 'Avg Engagement', value: '—', icon: <TrendingUp size={22} />, color: 'bg-green-600/20 text-green-400' },
           ].map((stat, i) => (
             <div key={i} className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div>
@@ -406,33 +589,33 @@ const handleJoinMeeting = async () => {
           <div className="lg:col-span-2 bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4">
               <h2 className="text-white font-semibold flex items-center gap-2 text-sm sm:text-base">
-                <BookOpen size={18} className="text-indigo-400" /> Upcoming Classes
+                <BookOpen size={18} className="text-indigo-400" /> My Classes
               </h2>
-              <button className="text-indigo-400 text-xs sm:text-sm hover:underline whitespace-nowrap">View All →</button>
+              <button onClick={() => navigate('/classrooms')} className="text-indigo-400 text-xs sm:text-sm hover:underline whitespace-nowrap">Create New →</button>
             </div>
             <div className="space-y-2 sm:space-y-3">
-              {sessions.map(session => (
-                <div key={session.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-[#0f1123] rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3">
+              {teacherClassrooms.map(classroom => (
+                <div key={classroom.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 bg-[#0f1123] rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3">
                   <div className="flex items-center gap-3 w-full sm:w-auto min-w-0">
-                    <div className={`w-9 h-9 ${session.color} rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                      {session.name[0]}
+                    <div className={`w-9 h-9 ${classroom.color} rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {classroom.name[0]}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-medium truncate">{session.name}</p>
-                      <p className="text-slate-500 text-xs">{session.date}</p>
+                      <p className="text-white text-sm font-medium truncate">{classroom.name}</p>
+                      <p className="text-slate-500 text-xs">Ready to teach</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                    <span className="text-xs bg-indigo-600/20 text-indigo-400 px-2 py-1 rounded-full flex-shrink-0">
-                      {session.students} students
-                    </span>
-                    <button onClick={() => navigate(`/meet/${session.id}`)}
-                      className="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">
-                      <Play size={12} /> <span className="hidden xs:inline">Start</span>
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => handleJoinClass(classroom)}
+                    disabled={joiningClass === classroom.id}
+                    className="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Video size={12} /> <span className="hidden xs:inline">{joiningClass === classroom.id ? 'Starting...' : 'Start'}</span>
+                  </button>
                 </div>
               ))}
+              {teacherClassrooms.length === 0 && (
+                <p className="text-slate-400 text-xs text-center py-4">No classrooms yet. <span onClick={() => navigate('/classrooms')} className="text-indigo-400 hover:underline cursor-pointer">Create one</span>.</p>
+              )}
             </div>
           </div>
 
@@ -444,29 +627,47 @@ const handleJoinMeeting = async () => {
                 ⚡ Quick Actions
               </h2>
               <div className="space-y-1">
-                {quickActions.map((action, i) => (
-                  <button key={i} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
-                    <span className="text-indigo-400 flex-shrink-0">{action.icon}</span>
-                    <span className="truncate">{action.label}</span>
-                  </button>
-                ))}
+                <button onClick={() => navigate('/classrooms')} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
+                  <span className="text-indigo-400 flex-shrink-0"><Plus size={16} /></span>
+                  <span className="truncate">Create New Class</span>
+                </button>
+                <button onClick={handleStartInstantMeeting} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
+                  <span className="text-indigo-400 flex-shrink-0"><Video size={16} /></span>
+                  <span className="truncate">Start Instant Meeting</span>
+                </button>
+                <button onClick={() => setShowJoinModal(true)} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
+                  <span className="text-indigo-400 flex-shrink-0"><Play size={16} /></span>
+                  <span className="truncate">Join Classroom</span>
+                </button>
+                <button onClick={() => navigate('/analytics')} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
+                  <span className="text-indigo-400 flex-shrink-0"><BarChart2 size={16} /></span>
+                  <span className="truncate">View Analytics</span>
+                </button>
+                <button onClick={() => navigate('/reports')} className="w-full flex items-center gap-2 text-slate-400 hover:text-white hover:bg-[#0f1123] px-3 py-2.5 rounded-lg text-xs sm:text-sm transition-colors text-left">
+                  <span className="text-indigo-400 flex-shrink-0"><FileText size={16} /></span>
+                  <span className="truncate">Generate Reports</span>
+                </button>
               </div>
             </div>
 
-            {/* Recent Sessions */}
+            {/* Class Statistics */}
             <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-4 sm:p-6">
               <h2 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm sm:text-base">
-                📊 Recent Sessions
+                📚 Classroom Status
               </h2>
               <div className="space-y-2">
-                {sessions.map(session => (
-                  <div key={session.id} className="flex items-center justify-between">
-                    <p className="text-slate-400 text-xs truncate">{session.name}</p>
-                    <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                      {Math.floor(Math.random() * 30 + 70)}%
-                    </span>
-                  </div>
-                ))}
+                {teacherClassrooms.length > 0 ? (
+                  teacherClassrooms.slice(0, 5).map(cls => (
+                    <div key={cls.id} className="flex items-center justify-between">
+                      <p className="text-slate-400 text-xs truncate">{cls.name}</p>
+                      <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
+                        Ready
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-500 text-xs text-center py-2">No classrooms created yet</p>
+                )}
               </div>
             </div>
           </div>

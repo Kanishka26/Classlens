@@ -61,3 +61,12 @@ body {
   }
 }
 
+/* Gradient text effect */
+.gradient-text-cyan {
+  background: linear-gradient(90deg, #00d9ff 0%, #00ffa3 50%, #00d9ff 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+

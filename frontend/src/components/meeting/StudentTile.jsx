@@ -21,7 +21,7 @@ export default function StudentTile({ remoteUser, label, score, isLocal, videoRe
   const initials = label?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div className={`relative bg-[#1a1d35] rounded-xl overflow-hidden ring-2 ${style.ring} transition-all duration-500`}
+    <div className={`relative bg-[#1a1d35] rounded-xl overflow-hidden ring-2 ${style.ring} transition-all duration-500 w-full h-full`}
       style={{ aspectRatio: '16/9' }}>
 
       {/* Video or Avatar */}

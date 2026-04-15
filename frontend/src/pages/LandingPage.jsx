@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Zap, Brain, Eye, BarChart2, Bell, Video, FileText, ArrowRight } from 'lucide-react'
+import { Brain, Eye, BarChart2, Bell, Video, FileText, ArrowRight, Zap } from 'lucide-react'
 
 const features = [
   { icon: <Brain size={24} className="text-indigo-400" />, title: 'AI Engagement Detection', desc: 'Real-time analysis of student attention using advanced computer vision and emotion recognition.' },
@@ -34,10 +34,25 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="bg-[#1a1d35]/90 backdrop-blur border-b border-[#2d3155] px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 sm:w-9 h-8 sm:h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-            <Zap size={18} className="sm:w-5 sm:h-5 text-white" />
-          </div>
-          <span className="text-base sm:text-xl font-bold text-indigo-400">ClassLens</span>
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{ stopColor: '#fb923c', stopOpacity: 1 }} />
+                <stop offset="50%" style={{ stopColor: '#ec4899', stopOpacity: 1 }} />
+                <stop offset="100%" style={{ stopColor: '#f43f5e', stopOpacity: 1 }} />
+              </linearGradient>
+            </defs>
+            <path d="M4 16 Q8 8, 16 8 Q24 8, 28 16" stroke="url(#grad1)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+            <path d="M6 20 Q10 14, 16 14 Q22 14, 26 20" stroke="url(#grad1)" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.7"/>
+            <path d="M8 24 Q12 20, 16 20 Q20 20, 24 24" stroke="url(#grad1)" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+          </svg>
+          <span style={{
+            background: 'linear-gradient(90deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            display: 'inline-block'
+          }} className="text-base sm:text-xl font-bold">ClassLens</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <button onClick={() => navigate('/login')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors px-3 sm:px-4 py-2">
@@ -67,7 +82,13 @@ export default function LandingPage() {
           </div>
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight">
             Understand your students<br />
-            <span className="text-indigo-400">like never before</span>
+            <span style={{
+              background: 'linear-gradient(90deg, #00d9ff 0%, #00ffa3 50%, #00d9ff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}>like never before</span>
           </h1>
           <p className="text-slate-400 text-sm sm:text-lg lg:text-xl max-w-2xl mx-auto mb-6 sm:mb-10">
             ClassLens uses AI to monitor student engagement in real-time during virtual classes — helping teachers identify struggling students and improve learning outcomes.
@@ -120,7 +141,13 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 border-t border-[#2d3155]">
         <div className="text-center mb-8 sm:mb-12">
           <h2 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
-            Everything you need to <span className="text-indigo-400">engage students</span>
+            Everything you need to <span style={{
+              background: 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}>engage students</span>
           </h2>
           <p className="text-slate-400 text-sm sm:text-lg">Powerful AI tools designed specifically for educators.</p>
         </div>
@@ -141,7 +168,13 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 border-t border-[#2d3155]">
         <div className="text-center mb-10 sm:mb-16">
           <h2 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
-            How <span className="text-indigo-400">ClassLens</span> works
+            How <span style={{
+              background: 'linear-gradient(90deg, #06b6d4 0%, #0ea5e9 50%, #3b82f6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}>ClassLens</span> works
           </h2>
           <p className="text-slate-400 text-sm sm:text-lg">Get started in minutes with our simple 4-step process.</p>
         </div>
@@ -164,7 +197,19 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
           <div>
             <h2 className="text-2xl sm:text-4xl font-bold mb-4">
-              Why teachers <span className="text-indigo-400">love</span> ClassLens
+              Why teachers <span style={{
+                background: 'linear-gradient(90deg, #f43f5e 0%, #ec4899 50%, #f43f5e 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                display: 'inline-block'
+              }}>love</span> <span style={{
+                background: 'linear-gradient(90deg, #06b6d4 0%, #0ea5e9 50%, #3b82f6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                display: 'inline-block'
+              }}>ClassLens</span>
             </h2>
             <p className="text-slate-400 text-sm sm:text-base mb-6 sm:mb-8">Join thousands of educators who have transformed their virtual classrooms with AI-powered engagement insights.</p>
             <div className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
@@ -211,7 +256,13 @@ export default function LandingPage() {
         <div className="bg-[#1a1d35] border border-[#2d3155] rounded-2xl p-6 sm:p-12 lg:p-16 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/20 via-transparent to-indigo-900/20 pointer-events-none" />
           <h2 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4 relative z-10">
-            Ready to transform your <span className="text-indigo-400">classroom?</span>
+            Ready to transform your <span style={{
+              background: 'linear-gradient(90deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block'
+            }}>classroom?</span>
           </h2>
           <p className="text-slate-400 text-sm sm:text-lg mb-6 sm:mb-8 relative z-10">Join ClassLens today and start understanding your students like never before.</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 relative z-10">

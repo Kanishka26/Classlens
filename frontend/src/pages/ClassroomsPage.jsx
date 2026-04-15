@@ -25,7 +25,14 @@ export default function ClassroomsPage() {
   // Fetch classrooms from backend
   useEffect(() => {
     fetchClassrooms()
-  }, [])
+    // Poll for updates every 5 seconds for students to check session status
+    if (user?.role === 'student') {
+      const pollInterval = setInterval(() => {
+        fetchClassrooms()
+      }, 30000)
+      return () => clearInterval(pollInterval)
+    }
+  }, [user])
 
   const fetchClassrooms = async () => {
     try {
@@ -41,14 +48,67 @@ export default function ClassroomsPage() {
       const { data } = await response.json()
       setClassrooms(data || [])
       
-      // Fetch enrolled classrooms for students
+      // Fetch enrolled classrooms and session data for students
       if (user?.role === 'student') {
-        const enrolledResponse = await fetch(`${BACKEND_URL}/classrooms/enrolled/all`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        if (enrolledResponse.ok) {
+        try {
+          const [enrolledResponse, sessionsResponse] = await Promise.all([
+            fetch(`${BACKEND_URL}/classrooms/enrolled/all`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch(`${BACKEND_URL}/session/active/all`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+          ])
+          
+          if (!enrolledResponse.ok) {
+            console.error('❌ Enrolled classrooms fetch failed:', enrolledResponse.status, enrolledResponse.statusText)
+            setEnrolledClassrooms([])
+            return
+          }
+          
+          if (!sessionsResponse.ok) {
+            console.warn('⚠️ Sessions fetch failed, showing classrooms without status')
+            const { data: enrolled } = await enrolledResponse.json()
+            setEnrolledClassrooms(enrolled || [])
+            return
+          }
+          
           const { data: enrolled } = await enrolledResponse.json()
-          setEnrolledClassrooms(enrolled || [])
+          const { data: sessions } = await sessionsResponse.json()
+          
+          console.log('✅ Enrolled classrooms:', enrolled)
+          console.log('🎬 Sessions:', sessions)
+          
+          // Create a map of teacher ID to active sessions
+          const activeSessionsByTeacher = {}
+          sessions.forEach(session => {
+            const teacherId = session.teacherId
+            if (!activeSessionsByTeacher[teacherId]) {
+              activeSessionsByTeacher[teacherId] = []
+            }
+            // Only count sessions created in the last 2 hours as "active"
+            const createdTime = new Date(session.createdAt).getTime()
+            const now = new Date().getTime()
+            if (now - createdTime < 2 * 60 * 60 * 1000) {
+              activeSessionsByTeacher[teacherId].push(session)
+            }
+          })
+          
+          // Add session info to enrolled classrooms
+          const classroomsWithSessions = (enrolled || []).map(cls => {
+            const teacherSessions = activeSessionsByTeacher[cls.teacherId] || []
+            const activeSession = teacherSessions.length > 0 ? teacherSessions[0] : null
+            return {
+              ...cls,
+              isLive: teacherSessions.length > 0,
+              sessionId: activeSession?.id || null
+            }
+          })
+          
+          setEnrolledClassrooms(classroomsWithSessions)
+        } catch (err) {
+          console.error('❌ Error in student classrooms fetch:', err)
+          setEnrolledClassrooms([])
         }
       }
       
@@ -110,9 +170,43 @@ export default function ClassroomsPage() {
     setShowMeetingModal(true)
   }
 
-  const confirmStartMeeting = () => {
-    if (selectedClassroom) {
-      navigate(`/meet/${selectedClassroom.id}`)
+  const confirmStartMeeting = async () => {
+    if (!selectedClassroom) return
+
+    try {
+      const token = localStorage.getItem('classlens_token')
+      console.log('📝 Creating session for classroom:', selectedClassroom.name)
+      
+      // Create a new session first
+      const res = await fetch(`${BACKEND_URL}/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: selectedClassroom.name, classroomId: selectedClassroom.id })
+      })
+      
+      if (!res.ok) {
+        console.error('❌ Failed to create session:', res.status, res.statusText)
+        setError('Failed to start meeting: ' + res.status + ' ' + res.statusText)
+        return
+      }
+      
+      const data = await res.json()
+      console.log('✅ Session created:', data)
+      
+      if (data.id) {
+        console.log('🚀 Navigating to meeting:', data.id)
+        setShowMeetingModal(false)
+        navigate(`/meet/${data.id}`)
+      } else {
+        console.error('❌ No session ID in response:', data)
+        setError('Failed to start meeting. No session ID returned.')
+      }
+    } catch (err) {
+      console.error('❌ Failed to start meeting:', err)
+      setError('Error starting meeting: ' + err.message)
     }
   }
 
@@ -285,13 +379,6 @@ export default function ClassroomsPage() {
                 </div>
               </div>
               <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-4 flex items-center gap-3">
-                <div className="text-green-400"><Plus size={22} /></div>
-                <div>
-                  <p className="text-slate-400 text-sm">Available to Join</p>
-                  <p className="text-2xl font-bold text-white">{classrooms.filter(c => !enrolledClassrooms.some(e => e.id === c.id)).length}</p>
-                </div>
-              </div>
-              <div className="bg-[#1a1d35] border border-[#2d3155] rounded-xl p-4 flex items-center gap-3">
                 <div className="text-yellow-400"><Users size={22} /></div>
                 <div>
                   <p className="text-slate-400 text-sm">Teachers</p>
@@ -323,9 +410,15 @@ export default function ClassroomsPage() {
                       <p className="text-slate-400 text-xs mb-2">by {classroom.teacherName}</p>
                       <p className="text-slate-400 text-sm mb-4">{classroom.description || 'No description'}</p>
                       <div className="flex gap-2">
-                        <button onClick={() => navigate(`/meet/${classroom.id}`)}
-                          className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg transition-colors text-sm font-medium">
-                          <Play size={14} /> Join Class
+                        <button 
+                          onClick={() => classroom.isLive && classroom.sessionId && navigate(`/meet/${classroom.sessionId}`)}
+                          disabled={!classroom.isLive || !classroom.sessionId}
+                          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors text-sm font-medium ${
+                            classroom.isLive && classroom.sessionId
+                              ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer' 
+                              : 'bg-slate-600/30 text-slate-500 cursor-not-allowed'
+                          }`}>
+                          <Play size={14} /> {classroom.isLive ? 'Join Class' : '⏳ Waiting'}
                         </button>
                         <button onClick={() => handleLeaveClassroom(classroom.id)}
                           className="flex-1 flex items-center justify-center gap-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 py-2 rounded-lg transition-colors text-sm font-medium">
