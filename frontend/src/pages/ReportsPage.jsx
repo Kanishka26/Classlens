@@ -62,8 +62,22 @@ const mockWeeks = [
 ]
 
 if (type === 'student') setData([...mockStudents, ...(json.students || [])])
-else if (type === 'session') setData([...mockSessions, ...(json.sessions || [])])
-else if (type === 'weekly') setData([...mockWeeks, ...(json.weeks || [])])
+else if (type === 'session') {
+  const combined = [...mockSessions, ...(json.sessions || [])]
+  // Sort by createdAt - newest first
+  combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  setData(combined)
+}
+else if (type === 'weekly') {
+  const combined = [...mockWeeks, ...(json.weeks || [])]
+  // Sort by week label - newest first
+  combined.sort((a, b) => {
+    const dateA = new Date(a.weekLabel.replace('Week of ', ''))
+    const dateB = new Date(b.weekLabel.replace('Week of ', ''))
+    return dateB - dateA
+  })
+  setData(combined)
+}
     } catch (err) {
       console.error(err)
     } finally {
@@ -251,7 +265,7 @@ else if (type === 'weekly') setData([...mockWeeks, ...(json.weeks || [])])
   ]
 
   return (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8">

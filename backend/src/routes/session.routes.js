@@ -242,13 +242,21 @@ router.get('/active/classroom/:classroomId', verifyToken, async (req, res) => {
   }
 });
 
-// GET /session/active/all - Get all active sessions for any classroom
+// GET /session/active/all - Get all active sessions from the last 2 hours
 router.get('/active/all', verifyToken, async (req, res) => {
   try {
+    console.log('📡 [SESSION] GET /active/all - Fetching all active sessions');
     const sessionsSnap = await db.collection('sessions').get();
-    const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json({ success: true, data: sessions });
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    
+    const activeSessions = sessionsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(s => new Date(s.createdAt).getTime() > twoHoursAgo);
+    
+    console.log(`✅ [SESSION] Found ${activeSessions.length} active sessions out of ${sessionsSnap.docs.length} total`);
+    res.json({ success: true, data: activeSessions });
   } catch (err) { 
+    console.error('❌ [SESSION] Error fetching active sessions:', err.message);
     res.status(500).json({ error: err.message }); 
   }
 });

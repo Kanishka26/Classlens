@@ -26,21 +26,21 @@ export default function AIMonitorPanel({ engagementMap, participants, onClose })
   }))
 
   return (
-    <div className="w-72 bg-[#1a1d35] border-l border-[#2d3155] flex flex-col overflow-hidden">
+    <div className="w-72 bg-[var(--bg-secondary)] border-l border-[var(--border-color)] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-[#2d3155] flex items-center justify-between">
-        <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+      <div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
+        <h2 className="text-[var(--text-primary)] font-semibold text-sm flex items-center gap-2">
           <Activity size={16} className="text-indigo-400" /> AI Engagement Monitor
         </h2>
-        <button onClick={onClose} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
+        <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg leading-none">×</button>
       </div>
 
       {/* Circular progress */}
-      <div className="p-4 border-b border-[#2d3155] flex flex-col items-center">
-        <p className="text-slate-400 text-xs mb-3">Class Engagement</p>
+      <div className="p-4 border-b border-[var(--border-color)] flex flex-col items-center">
+        <p className="text-[var(--text-secondary)] text-xs mb-3">Class Engagement</p>
         <div className="relative w-28 h-28">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" fill="none" stroke="#2d3155" strokeWidth="8" />
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-color)" strokeWidth="8" />
             <circle cx="50" cy="50" r="40" fill="none"
               stroke={getRingColor(avg)} strokeWidth="8"
               strokeLinecap="round"
@@ -50,13 +50,13 @@ export default function AIMonitorPanel({ engagementMap, participants, onClose })
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-white">{avg}%</span>
+            <span className="text-2xl font-bold text-[var(--text-primary)]">{avg}%</span>
           </div>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-2 p-4 border-b border-[#2d3155]">
+      <div className="grid grid-cols-3 gap-2 p-4 border-b border-[var(--border-color)]">
         <div className="bg-green-600/20 rounded-lg p-2 text-center">
           <p className="text-green-400 text-xl font-bold">{focused}</p>
           <p className="text-green-400 text-xs">Focused</p>
@@ -72,8 +72,8 @@ export default function AIMonitorPanel({ engagementMap, participants, onClose })
       </div>
 
       {/* Mini chart */}
-      <div className="p-4 border-b border-[#2d3155]">
-        <p className="text-slate-400 text-xs mb-2 flex items-center gap-1">
+      <div className="p-4 border-b border-[var(--border-color)]">
+        <p className="text-[var(--text-secondary)] text-xs mb-2 flex items-center gap-1">
           <TrendingUp size={12} /> Live Engagement
         </p>
         <ResponsiveContainer width="100%" height={60}>
@@ -85,33 +85,33 @@ export default function AIMonitorPanel({ engagementMap, participants, onClose })
               </linearGradient>
             </defs>
             <Area type="monotone" dataKey="avg" stroke="#6366f1" fill="url(#miniGrad)" strokeWidth={1.5} dot={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#1a1d35', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '10px' }} />
+            <Tooltip contentStyle={{ backgroundColor: 'var(--bg-secondary)', border: 'none', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '10px' }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
       {/* Student list */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 border-b border-[#2d3155]">
-          <p className="text-slate-400 text-xs flex items-center gap-1">
+        <div className="p-4 border-b border-[var(--border-color)]">
+          <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1">
             <Users size={12} /> Students ({participants.length})
           </p>
         </div>
-        <div className="divide-y divide-[#2d3155]">
+        <div className="divide-y divide-[var(--border-color)]">
           {participants.length === 0 ? (
-            <p className="text-slate-500 text-xs text-center py-6">Waiting for students...</p>
+            <p className="text-[var(--text-secondary)] text-xs text-center py-6">Waiting for students...</p>
           ) : (
             participants.map((p, i) => {
               const score = engagementMap[p.uid]
               const status = score !== undefined ? getStatus(score) : null
               return (
-                <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-[#0f1123] transition-colors">
+                <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-tertiary)] transition-colors">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                       {String(p.name).slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-white text-xs font-medium">{p.name}</p>
+                      <p className="text-[var(--text-primary)] text-xs font-medium">{p.name}</p>
                       {status && <p className={`text-xs ${status.color}`}>{status.label}</p>}
                     </div>
                   </div>

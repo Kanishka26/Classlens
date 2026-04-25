@@ -94,7 +94,10 @@ export default function HistoryPage() {
         ...h,
         status: getEngagementStatus(h.avgScore)
       }))
-      setHistory([...mockHistory, ...real])
+      const combined = [...mockHistory, ...real]
+      // Sort by date in descending order (newest first)
+      combined.sort((a, b) => new Date(b.date) - new Date(a.date))
+      setHistory(combined)
     } catch (err) {
       console.error(err)
       setHistory(mockHistory)
@@ -114,7 +117,7 @@ export default function HistoryPage() {
   const needsAttention = history.filter(h => h.avgScore < 50).length
 
   return (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 

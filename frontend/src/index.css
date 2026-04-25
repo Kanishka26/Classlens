@@ -1,2 +1,261 @@
 @import "tailwindcss";
 
+@layer base {
+  /* Ensure proper z-index layering for background */
+  html {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: transparent !important;
+  }
+
+  body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    background: transparent !important;
+    z-index: auto;
+  }
+
+  /* Dark theme (default) */
+  :root {
+    --bg-primary: #0f1123;
+    --bg-secondary: #1a1d35;
+    --bg-tertiary: #2d3155;
+    --text-primary: #ffffff;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --border-color: #2d3155;
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e5e5e5;
+    --text-primary: #1a1a1a;
+    --text-secondary: #404040;
+    --text-tertiary: #666666;
+    --border-color: #d4d4d8;
+  }
+}
+
+/* Apply theme variables */
+body {
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+  background: transparent !important;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== LIGHT MODE THEME ===== */
+
+[data-theme="light"] {
+  color: #1a1a1a !important;
+  color-scheme: light;
+}
+
+/* Light mode - override only CARD/CONTENT elements, not layout containers */
+[data-theme="light"] [class*="rounded"],
+[data-theme="light"] [class*="border"],
+[data-theme="light"] [class*="shadow"] {
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* Light mode - keep layout containers transparent to show background */
+[data-theme="light"] body,
+[data-theme="light"] #root,
+[data-theme="light"] main,
+[data-theme="light"] section {
+  background-color: transparent !important;
+}
+
+/* Light mode - text colors */
+[data-theme="light"] {
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-slate-100,
+[data-theme="light"] .text-slate-200,
+[data-theme="light"] .text-slate-300,
+[data-theme="light"] .text-slate-400 {
+  color: #1a1a1a !important;
+}
+
+/* Light mode - preserve button colors */
+[data-theme="light"] .bg-indigo-600,
+[data-theme="light"] .bg-indigo-700,
+[data-theme="light"] .hover\:bg-indigo-700:hover,
+[data-theme="light"] .bg-green-600,
+[data-theme="light"] .bg-red-600,
+[data-theme="light"] .bg-purple-600 {
+  background-color: var(--color-bg) !important;
+}
+
+[data-theme="light"] .bg-indigo-600 {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bg-indigo-700 {
+  background-color: #4338ca !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .hover\:bg-indigo-700:hover {
+  background-color: #4338ca !important;
+}
+
+/* Light mode - secondary colors */
+[data-theme="light"] .text-indigo-400 {
+  color: #3b82f6 !important;
+}
+
+[data-theme="light"] .text-green-400 {
+  color: #22c55e !important;
+}
+
+[data-theme="light"] .text-red-400 {
+  color: #ef4444 !important;
+}
+
+/* Light mode - gradient overlays - REMOVE DARK SHADOWS */
+[data-theme="light"] .bg-gradient-to-t,
+[data-theme="light"] .bg-gradient-to-b {
+  background: transparent !important;
+}
+
+[data-theme="light"] .from-\[#0f1123\],
+[data-theme="light"] .from-black\/80 {
+  --tw-gradient-from: transparent !important;
+}
+
+[data-theme="light"] [class*="from-\[#0f1123\]"] {
+  background: transparent !important;
+}
+
+/* ===== LIGHT MODE - LANDING PAGE SPECIFIC ===== */
+
+/* Navbar styling for light mode */
+[data-theme="light"] nav {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #d4d4d8 !important;
+}
+
+[data-theme="light"] nav .text-slate-400 {
+  color: #666666 !important;
+}
+
+[data-theme="light"] nav .text-white {
+  color: #1a1a1a !important;
+}
+
+[data-theme="light"] nav button {
+  color: #1a1a1a !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* Landing page sections - overlay adjustments */
+[data-theme="light"] .bg-gradient-to-b {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.9)) !important;
+}
+
+/* Features section - no background in light mode */
+[data-theme="light"] section:has(.grid.grid-cols-1) {
+  background-color: transparent !important;
+}
+
+/* Stat cards - opacity backgrounds */
+[data-theme="light"] [class*="backdrop-blur"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* Text adjustments */
+[data-theme="light"] .text-slate-300 {
+  color: #666666 !important;
+}
+
+[data-theme="light"] .text-slate-400 {
+  color: #888888 !important;
+}
+
+/* Step numbers - make them BRIGHT and visible in DARK mode */
+.step-number {
+  color: #b8d4ff !important;
+  font-weight: 800 !important;
+}
+
+/* Step numbers - make them visible in LIGHT mode */
+[data-theme="light"] .step-number {
+  color: #888888 !important;
+  font-weight: 800 !important;
+}
+
+/* Old selector backup for any remaining arbitrary colors */
+.text-\[#2d3155\] {
+  color: #b8d4ff !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="light"] .text-\[#2d3155\] {
+  color: #888888 !important;
+  font-weight: 800 !important;
+}
+
+/* Border colors throughout */
+[data-theme="light"] [class*="border-\[#2d3155\]"],
+[data-theme="light"] [class*="border-indigo"] {
+  border-color: #d4d4d8 !important;
+}
+
+/* Shadow and overlay adjustments */
+[data-theme="light"] .rounded-2xl {
+  border-color: #d4d4d8 !important;
+}
+
+/* Hero text shadows should be light in light mode */
+[data-theme="light"] h1,
+[data-theme="light"] h2 {
+  text-shadow: none !important;
+}
+
+/* Badge styling for light mode */
+[data-theme="light"] [class*="rounded-full"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #d4d4d8 !important;
+}
+
+/* CTA Banner - Better gradient in light mode */
+[data-theme="light"] .rounded-2xl.p-6,
+[data-theme="light"] .rounded-2xl.p-12 {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #f0f4ff 100%) !important;
+  border-color: #d1d5db !important;
+}
+
+/* CTA Banner inner gradient overlay */
+[data-theme="light"] .bg-gradient-to-r {
+  background: linear-gradient(to right, rgba(99, 102, 241, 0.08), transparent, rgba(99, 102, 241, 0.08)) !important;
+}
+
+/* Feature cards grid - semi-transparent for light mode */
+[data-theme="light"] .grid > div[class*="bg-\[#1a1d35\]"] {
+  background-color: #cbd5e1 !important;
+  border-color: #b0bcc8 !important;
+}

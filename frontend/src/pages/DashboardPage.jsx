@@ -8,25 +8,6 @@ import { BookOpen, Users, Video, TrendingUp, Plus, Play, BarChart2, FileText, Ra
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'
 
-const mockSessions = [
-  { id: '1', name: 'Physics - Class 12B', students: 15, date: 'Feb 19, 5:37 PM', color: 'bg-purple-600' },
-  { id: '2', name: 'Computer Science - Class 12', students: 10, date: 'Feb 20, 5:37 PM', color: 'bg-blue-600' },
-  { id: '3', name: 'Mathematics - Class 11A', students: 18, date: 'Feb 21, 3:00 PM', color: 'bg-green-600' },
-]
-
-// Mock live sessions (would come from backend in real app)
-const mockLiveSessions = [
-  { id: '1', name: 'Physics - Class 12B', color: 'bg-purple-600', participants: 12, engagement: 78, status: 'live' },
-  { id: '2', name: 'Computer Science - Class 12', color: 'bg-blue-600', participants: 8, engagement: 85, status: 'live' },
-]
-
-// Mock student enrolled classes (will be replaced by real data)
-const mockStudentClasses = [
-  { id: '1', name: 'Physics - Class 12B', teacher: 'Mr. Johnson', color: 'bg-purple-600', status: 'live', engagement: 78 },
-  { id: '2', name: 'Computer Science - Class 12', teacher: 'Ms. Sarah', color: 'bg-blue-600', status: 'upcoming', nextClass: 'Feb 23, 5:00 PM' },
-  { id: '3', name: 'Mathematics - Class 11A', teacher: 'Mr. Kumar', color: 'bg-green-600', status: 'completed', engagement: 82 },
-]
-
 function CopyButton({ code }) {
   const [copied, setCopied] = useState(false)
   return (
@@ -48,20 +29,76 @@ function CopyButton({ code }) {
 export default function DashboardPage() {
   const { user } = useContext(AuthContext)
   const navigate = useNavigate()
-  const [sessions] = useState(mockSessions)
-  const [liveSessions] = useState(mockLiveSessions)
   const [enrolledClassrooms, setEnrolledClassrooms] = useState([])
   const [teacherClassrooms, setTeacherClassrooms] = useState([])
+  const [allSessions, setAllSessions] = useState([])
+  const [totalStudents, setTotalStudents] = useState(0)
   const [meetingCode, setMeetingCode] = useState(null)
   const [pendingMeetingId, setPendingMeetingId] = useState(null)
   const [joinCode, setJoinCode] = useState('')
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [joiningClass, setJoiningClass] = useState(null)
 
+  // Calculate average engagement from classrooms
+  const calculateAvgEngagement = (classrooms) => {
+    if (classrooms.length === 0) return 0
+    const total = classrooms.reduce((sum, cls) => sum + cls.engagement, 0)
+    return Math.round(total / classrooms.length)
+  }
+
+  // Calculate classes attended (completed sessions)
+  const calculateClassesAttended = (classrooms) => {
+    return classrooms.filter(cls => cls.status === 'completed').length
+  }
+
+  // Fetch all sessions for stats (teacher only)
+  const fetchSessionsForStats = async () => {
+    try {
+      const token = localStorage.getItem('classlens_token')
+      const res = await fetch(`${BACKEND_URL}/session/all`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAllSessions(data.data || [])
+      }
+    } catch (err) {
+      console.error('❌ Error fetching sessions for stats:', err)
+    }
+  }
+
+  // Calculate sessions held (completed sessions)
+  const calculateSessionsHeld = () => {
+    return allSessions.filter(session => {
+      const endTime = new Date(session.endedAt)
+      return session.endedAt && !isNaN(endTime.getTime())
+    }).length
+  }
+
+  // Fetch classroom enrollment data to get total student count
+  const fetchTotalStudents = async () => {
+    try {
+      const token = localStorage.getItem('classlens_token')
+      const res = await fetch(`${BACKEND_URL}/classrooms/students/count`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTotalStudents(data.totalStudents || 0)
+      }
+    } catch (err) {
+      // Fallback: try to estimate from classroom data if endpoint doesn't exist
+      console.warn('⚠️ Could not fetch total students count:', err.message)
+      setTotalStudents(0)
+    }
+  }
+
   // Fetch classrooms based on user role
   useEffect(() => {
     if (user?.role === 'teacher') {
       fetchTeacherClassrooms()
+      fetchSessionsForStats()
+      fetchTotalStudents()
     } else if (user?.role === 'student') {
       fetchEnrolledClassrooms()
       // Poll for classroom status updates every 30 seconds (reduced to save Firestore quota)
@@ -130,29 +167,30 @@ export default function DashboardPage() {
         console.log('📚 Enrolled classrooms:', classrooms)
         console.log('🎬 Active sessions:', sessions)
         
-        // Create a map of teacher ID to active sessions for quick lookup
-        const activeSessionsByTeacher = {}
+        // Create a map of classroom ID to active session for quick lookup
+        const activeSessionsByClassroom = {}
         sessions.forEach(session => {
-          const teacherId = session.teacherId
-          if (!activeSessionsByTeacher[teacherId]) {
-            activeSessionsByTeacher[teacherId] = []
-          }
+          const classroomId = session.classroomId
           // Only count sessions created in the last 2 hours as "active"
           const createdTime = new Date(session.createdAt).getTime()
           const now = new Date().getTime()
           if (now - createdTime < 2 * 60 * 60 * 1000) {
-            activeSessionsByTeacher[teacherId].push(session)
+            if (!activeSessionsByClassroom[classroomId]) {
+              activeSessionsByClassroom[classroomId] = session
+              console.log(`✅ Active session for classroom ${classroomId}:`, session.id)
+            } else {
+              console.warn(`⚠️ Multiple active sessions for classroom ${classroomId}, keeping first one`)
+            }
           }
         })
         
-        console.log('🔍 Active sessions by teacher:', activeSessionsByTeacher)
+        console.log('🔍 Active sessions by classroom:', activeSessionsByClassroom)
         
         // Convert to dashboard format
         const formattedClasses = classrooms.map(cls => {
-          // Check if this classroom's teacher has any active sessions
-          const teacherSessions = activeSessionsByTeacher[cls.teacherId] || []
-          const status = teacherSessions.length > 0 ? 'live' : 'upcoming'
-          const activeSession = teacherSessions.length > 0 ? teacherSessions[0] : null
+          // Check if this classroom has an active session
+          const activeSession = activeSessionsByClassroom[cls.id] || null
+          const hasActiveSession = activeSession !== null
           
           return {
             id: cls.id,
@@ -160,7 +198,7 @@ export default function DashboardPage() {
             name: cls.name,
             teacher: cls.teacherName,
             color: cls.color,
-            status: status,
+            status: hasActiveSession ? 'live' : 'upcoming',
             engagement: Math.floor(Math.random() * 30 + 70),
             nextClass: 'TBD'
           }
@@ -369,7 +407,7 @@ const handleJoinClass = async (cls) => {
 }
   // Student Dashboard Component
   const StudentDashboard = () => (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-8">
         {/* Header */}
@@ -502,7 +540,7 @@ const handleJoinClass = async (cls) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-xs sm:text-sm mb-1">Avg Engagement</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white">80%</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white">{calculateAvgEngagement(enrolledClassrooms)}%</p>
               </div>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-green-600/20 text-green-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
                 <TrendingUp size={20} className="sm:w-6 sm:h-6" />
@@ -513,7 +551,7 @@ const handleJoinClass = async (cls) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-xs sm:text-sm mb-1">Classes Attended</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white">12</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white">{calculateClassesAttended(enrolledClassrooms)}</p>
               </div>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-purple-600/20 text-purple-400 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
                 <Video size={20} className="sm:w-6 sm:h-6" />
@@ -527,7 +565,7 @@ const handleJoinClass = async (cls) => {
 
   // Teacher Dashboard Component
   const TeacherDashboard = () => (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 
@@ -567,9 +605,9 @@ const handleJoinClass = async (cls) => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-6 md:mb-8">
           {[
             { label: 'Total Classes', value: teacherClassrooms.length, icon: <BookOpen size={22} />, color: 'bg-indigo-600/20 text-indigo-400' },
-            { label: 'Total Students', value: 0, icon: <Users size={22} />, color: 'bg-purple-600/20 text-purple-400' },
-            { label: 'Sessions Held', value: 0, icon: <Video size={22} />, color: 'bg-blue-600/20 text-blue-400' },
-            { label: 'Avg Engagement', value: '—', icon: <TrendingUp size={22} />, color: 'bg-green-600/20 text-green-400' },
+            { label: 'Total Students', value: totalStudents, icon: <Users size={22} />, color: 'bg-purple-600/20 text-purple-400' },
+            { label: 'Sessions Held', value: calculateSessionsHeld(), icon: <Video size={22} />, color: 'bg-blue-600/20 text-blue-400' },
+            { label: 'Avg Engagement', value: calculateAvgEngagement(teacherClassrooms) + '%', icon: <TrendingUp size={22} />, color: 'bg-green-600/20 text-green-400' },
           ].map((stat, i) => (
             <div key={i} className="bg-[#1a1d35] border border-[#2d3155] rounded-lg sm:rounded-xl p-3 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div>
@@ -608,8 +646,8 @@ const handleJoinClass = async (cls) => {
                   <button 
                     onClick={() => handleJoinClass(classroom)}
                     disabled={joiningClass === classroom.id}
-                    className="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <Video size={12} /> <span className="hidden xs:inline">{joiningClass === classroom.id ? 'Starting...' : 'Start'}</span>
+                    className="flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap font-medium">
+                    <Play size={14} /> {joiningClass === classroom.id ? 'Starting...' : 'Start Session'}
                   </button>
                 </div>
               ))}

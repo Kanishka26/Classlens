@@ -110,6 +110,40 @@ const initEngagementSocket = (io) => {
       console.log(`✅ [CHAT] Message emitted to session:${sessionId}`);
     });
 
+    socket.on('screen_share_started', ({ sessionId, agoraUid }) => {
+      console.log(`📺 [SCREEN SHARE STARTED] sessionId: ${sessionId}, agoraUid: ${agoraUid}`);
+      
+      if (!sessionId || !agoraUid) {
+        console.error('❌ [SCREEN SHARE] Missing sessionId or agoraUid');
+        return;
+      }
+      
+      // Broadcast to all participants in the session
+      console.log(`📢 [SCREEN SHARE] Broadcasting to session:${sessionId}`);
+      io.to(`session:${sessionId}`).emit('screen_share_started', {
+        agoraUid
+      });
+      
+      console.log(`✅ [SCREEN SHARE] Started notification emitted to session:${sessionId}`);
+    });
+
+    socket.on('screen_share_stopped', ({ sessionId, agoraUid }) => {
+      console.log(`📺 [SCREEN SHARE STOPPED] sessionId: ${sessionId}, agoraUid: ${agoraUid}`);
+      
+      if (!sessionId || !agoraUid) {
+        console.error('❌ [SCREEN SHARE] Missing sessionId or agoraUid');
+        return;
+      }
+      
+      // Broadcast to all participants in the session
+      console.log(`📢 [SCREEN SHARE] Broadcasting to session:${sessionId}`);
+      io.to(`session:${sessionId}`).emit('screen_share_stopped', {
+        agoraUid
+      });
+      
+      console.log(`✅ [SCREEN SHARE] Stopped notification emitted to session:${sessionId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log('🔌 Socket disconnecting:', socket.id);
       

@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { Brain, Eye, BarChart2, Bell, Video, FileText, ArrowRight, Zap } from 'lucide-react'
+import { useContext } from 'react'
+import { Brain, Eye, BarChart2, Bell, Video, FileText, ArrowRight, Zap, Sun, Moon } from 'lucide-react'
+import { ThemeContext } from '../context/ThemeContext'
 
 const features = [
   { icon: <Brain size={24} className="text-indigo-400" />, title: 'AI Engagement Detection', desc: 'Real-time analysis of student attention using advanced computer vision and emotion recognition.' },
@@ -27,9 +29,10 @@ const benefits = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
+  const { theme, toggleTheme } = useContext(ThemeContext)
 
   return (
-    <div className="min-h-screen bg-[#0f1123] text-white">
+    <div className="min-h-screen text-white">
 
       {/* Navbar */}
       <nav className="bg-[#1a1d35]/90 backdrop-blur border-b border-[#2d3155] px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
@@ -55,6 +58,9 @@ export default function LandingPage() {
           }} className="text-base sm:text-xl font-bold">ClassLens</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
+          <button onClick={toggleTheme} className="p-2 hover:bg-indigo-600/20 rounded-lg transition-colors text-slate-400 hover:text-white">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
           <button onClick={() => navigate('/login')} className="text-slate-400 hover:text-white text-xs sm:text-sm transition-colors px-3 sm:px-4 py-2">
             Sign In
           </button>
@@ -125,7 +131,7 @@ export default function LandingPage() {
       </section>
 
       {/* Dashboard preview image */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 -mt-10 mb-12 sm:mb-20 relative z-10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 mt-12 mb-4 sm:mb-6 relative z-10">
         <div className="rounded-2xl overflow-hidden border border-[#2d3155] shadow-2xl shadow-indigo-900/20">
           <img
             src="https://images.unsplash.com/photo-1588196749597-9ff075ee6b5b?w=1400&q=80"
@@ -133,7 +139,6 @@ export default function LandingPage() {
             className="w-full object-cover opacity-80"
             style={{ maxHeight: '300px' }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f1123] via-transparent to-transparent rounded-2xl" />
         </div>
       </section>
 
@@ -181,7 +186,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {steps.map((step, i) => (
             <div key={i} className="relative">
-              <p className="text-5xl sm:text-6xl lg:text-7xl font-bold text-[#2d3155] mb-3">{step.num}</p>
+              <p className="text-5xl sm:text-6xl lg:text-7xl font-bold step-number mb-3">{step.num}</p>
               {i < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-8 right-0 text-[#2d3155] text-2xl">→</div>
               )}

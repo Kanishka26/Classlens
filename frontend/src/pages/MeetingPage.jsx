@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 import { AuthContext } from '../context/AuthContext'
 import StudentTile from '../components/meeting/StudentTile'
 import AIMonitorPanel from '../components/meeting/AIMonitorPanel'
-import { Mic, MicOff, Video, VideoOff, Monitor, PhoneOff, Users, Activity, MessageCircle, Send } from 'lucide-react'
+import { Mic, MicOff, Camera, CameraOff, Monitor, PhoneOff, Users, Activity, MessageCircle, Send, X } from 'lucide-react'
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID
 
@@ -37,11 +37,13 @@ export default function MeetingPage() {
   const [sessionName, setSessionName] = useState('Meeting')
   const [channelName, setChannelName] = useState(null)
   const [loadingSession, setLoadingSession] = useState(true)
+  const [screenShareUid, setScreenShareUid] = useState(null)
 
   const chatEndRef = useRef(null)
   const clientRef = useRef(null)
   const screenTrackRef = useRef(null)
   const localVideoRef = useRef(null)
+  const screenVideoRef = useRef(null)
   const canvasRef = useRef(null)
   const analysisRef = useRef(null)
   const socketRef = useRef(null)
@@ -171,6 +173,16 @@ export default function MeetingPage() {
       }
     })
 
+    socket.on('screen_share_started', ({ agoraUid }) => {
+      console.log('📺 Screen share started by:', agoraUid)
+      setScreenShareUid(agoraUid)
+    })
+
+    socket.on('screen_share_stopped', ({ agoraUid }) => {
+      console.log('📺 Screen share stopped by:', agoraUid)
+      setScreenShareUid(null)
+    })
+
     client.on('user-published', async (remoteUser, mediaType) => {
       await client.subscribe(remoteUser, mediaType)
       if (mediaType === 'video') {
@@ -212,6 +224,22 @@ export default function MeetingPage() {
       joinChannel(clientRef.current)
     }
   }, [channelName])
+
+  // Handle screen track playback when screen sharing starts
+  useEffect(() => {
+    if (isSharing && screenTrackRef.current && screenVideoRef.current) {
+      // Delay to ensure DOM is fully rendered
+      const timer = setTimeout(() => {
+        try {
+          console.log('▶️ Playing screen track to ref')
+          screenTrackRef.current.play(screenVideoRef.current)
+        } catch (err) {
+          console.error('❌ Failed to play screen track:', err)
+        }
+      }, 200)
+      return () => clearTimeout(timer)
+    }
+  }, [isSharing])
 
   const joinChannel = async (client) => {
     try {
@@ -305,12 +333,22 @@ export default function MeetingPage() {
         await clientRef.current.unpublish(localTracksRef.current.video)
         await clientRef.current.publish(screenTrack)
         setIsSharing(true)
+        setScreenShareUid(agoraUidRef.current)
+        // Notify others that screen share started
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('screen_share_started', { sessionId, agoraUid: agoraUidRef.current })
+        }
       } catch (err) { console.error(err) }
     } else {
       screenTrackRef.current?.close()
       await clientRef.current.unpublish(screenTrackRef.current)
       await clientRef.current.publish(localTracksRef.current.video)
       setIsSharing(false)
+      setScreenShareUid(null)
+      // Notify others that screen share stopped
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('screen_share_stopped', { sessionId, agoraUid: agoraUidRef.current })
+      }
     }
   }
 
@@ -344,18 +382,26 @@ export default function MeetingPage() {
 
   const totalTiles = socketParticipants.length || 1
   
-  // Responsive grid configuration based on participant count
+  // Responsive grid configuration based on participant count and screen share status
   let gridContainerClass = 'w-full h-full'
   let gridClass = 'grid-cols-1'
   let gridRows = 'auto-rows-max'
   let gridGapClass = 'gap-2 sm:gap-4'
   let isCentered = true
   
-  if (totalTiles === 1) {
-    // Single user: centered, no scroll
+  // When screen sharing is active, use different layout
+  if (screenShareUid) {
+    // Screen share layout: main area for screen + bottom bar for other participants
+    gridContainerClass = 'w-full h-full flex flex-col'
     gridClass = 'grid-cols-1'
     gridRows = 'auto-rows-max'
-    gridContainerClass = 'w-full h-full flex justify-center items-center'
+    gridGapClass = 'gap-2'
+    isCentered = false
+  } else if (totalTiles === 1) {
+    // Single user: centered, no scroll
+    gridClass = 'grid-cols-1'
+    gridRows = 'auto-rows-fr'
+    gridContainerClass = 'w-full h-full'
     isCentered = true
   } else if (totalTiles === 2) {
     // Two users: split 50/50 both ways
@@ -385,7 +431,7 @@ export default function MeetingPage() {
 
   if (!joined) {
     return (
-      <div className="min-h-screen bg-[#0f1123] flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
           <div className="animate-spin w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-white text-sm">Joining session...</p>
@@ -395,10 +441,10 @@ export default function MeetingPage() {
   }
 
   return (
-    <div className="h-screen bg-[#0f1123] flex flex-col overflow-hidden">
+    <div className="h-screen bg-transparent flex flex-col overflow-hidden">
 
       {/* Header */}
-      <div className="bg-[#1a1d35] border-b border-[#2d3155] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between shrink-0">
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <h1 className="text-white font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-xs md:max-w-sm">{sessionName}</h1>
           <div className="flex items-center gap-1 bg-red-600/20 border border-red-500/30 text-red-400 text-xs px-2 py-0.5 rounded-full shrink-0">
@@ -410,46 +456,46 @@ export default function MeetingPage() {
         <div className="relative shrink-0">
           <button
             onClick={() => setShowParticipants(!showParticipants)}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs sm:text-sm transition-colors px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:bg-[#2d3155]">
+            className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs sm:text-sm transition-colors px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:bg-[var(--bg-tertiary)]">
             <Users size={15} />
             <span className="hidden sm:inline">{socketParticipants.length} participants</span>
             <span className="sm:hidden">{socketParticipants.length}</span>
           </button>
 
           {showParticipants && (
-            <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-[#1a1d35] border border-[#2d3155] rounded-xl shadow-xl z-50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-[#2d3155] flex items-center justify-between">
-                <p className="text-white text-sm font-semibold">Participants ({socketParticipants.length})</p>
-                <button onClick={() => setShowParticipants(false)} className="text-slate-400 hover:text-white">
+            <div className="absolute right-0 top-full mt-2 w-56 sm:w-64 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center justify-between">
+                <p className="text-[var(--text-primary)] text-sm font-semibold">Participants ({socketParticipants.length})</p>
+                <button onClick={() => setShowParticipants(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <X size={14} />
                 </button>
               </div>
               <div className="max-h-60 overflow-y-auto">
-                <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0f1123] border-b border-[#2d3155]">
+                <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--bg-primary)] border-b border-[var(--border-color)]">
                   <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
                     {user?.name?.[0]?.toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{user?.name} <span className="text-slate-500 text-xs">(You)</span></p>
-                    <p className="text-slate-400 text-xs capitalize">{user?.role}</p>
+                    <p className="text-[var(--text-primary)] text-sm font-medium truncate">{user?.name} <span className="text-[var(--text-tertiary)] text-xs">(You)</span></p>
+                    <p className="text-[var(--text-secondary)] text-xs capitalize">{user?.role}</p>
                   </div>
                 </div>
                 {realParticipants.map((p, i) => {
                   const pd = socketParticipants.find(sp => sp.agoraUid === p.uid)
                   return (
-                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#0f1123] border-b border-[#2d3155]">
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--bg-primary)] border-b border-[var(--border-color)]">
                       <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
                         {p.name?.[0]?.toUpperCase()}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white text-sm truncate">{p.name}</p>
-                        <p className="text-slate-400 text-xs capitalize">{pd?.role || 'student'}</p>
+                        <p className="text-[var(--text-primary)] text-sm truncate">{p.name}</p>
+                        <p className="text-[var(--text-secondary)] text-xs capitalize">{pd?.role || 'student'}</p>
                       </div>
                     </div>
                   )
                 })}
                 {realParticipants.length === 0 && (
-                  <p className="text-slate-400 text-xs text-center py-4">No other participants yet</p>
+                  <p className="text-[var(--text-secondary)] text-xs text-center py-4">No other participants yet</p>
                 )}
               </div>
             </div>
@@ -458,10 +504,10 @@ export default function MeetingPage() {
       </div>
 
       {/* Body */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden w-full">
 
         {/* Video Grid */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className={`flex-1 min-h-0 overflow-hidden w-full ${screenShareUid ? 'flex flex-col' : 'overflow-y-auto'}`}>
           {isTeacher && alerts.length > 0 && (
             <div className="absolute top-24 left-4 right-4 z-10 space-y-1">
               {alerts.map(alert => (
@@ -472,30 +518,102 @@ export default function MeetingPage() {
             </div>
           )}
 
-          <div className={`grid ${gridClass} ${gridRows} ${gridGapClass} ${gridContainerClass} p-2 sm:p-4`}>
-            <StudentTile
-              label={`${user?.name || 'You'} (${isTeacher ? 'Teacher' : 'You'})`}
-              videoRef={localVideoRef}
-              score={isTeacher ? undefined : engagementMap[agoraUid]}
-              isLocal
-              isVideoOff={isVideoOff}
-            />
-            {socketParticipants
-              .filter(p => p.agoraUid !== agoraUidRef.current)
-              .map(p => {
-                const agoraUser = remoteUsers.find(u => u.uid === p.agoraUid)
-                const isOff = !agoraUser || videoOffUsers.has(p.agoraUid)
-                return (
+          {screenShareUid ? (
+            <div className="flex flex-col flex-1 min-h-0 w-full">
+              {/* Screen share main view - takes all available space */}
+              <div className="flex-1 min-h-0 min-w-0 bg-black overflow-hidden flex items-center justify-center">
+                {screenShareUid === agoraUidRef.current ? (
                   <StudentTile
-                    key={p.agoraUid}
-                    remoteUser={agoraUser}
-                    label={p.name || `Student ${String(p.agoraUid).slice(0, 6)}`}
-                    score={isOff ? 0 : engagementMap[p.agoraUid]}
-                    isVideoOff={isOff}
+                    label={`${user?.name || 'You'} (Sharing Screen)`}
+                    videoRef={screenVideoRef}
+                    isLocal
+                    isScreenShare
                   />
-                )
-              })}
-          </div>
+                ) : (
+                  socketParticipants
+                    .filter(p => p.agoraUid === screenShareUid)
+                    .map(p => {
+                      const agoraUser = remoteUsers.find(u => u.uid === p.agoraUid)
+                      const isOff = !agoraUser || videoOffUsers.has(p.agoraUid)
+                      return (
+                        <StudentTile
+                          key={p.agoraUid}
+                          remoteUser={agoraUser}
+                          label={`${p.name} (Sharing Screen)`}
+                          isVideoOff={isOff}
+                          isScreenShare
+                        />
+                      )
+                    })
+                )}
+              </div>
+              
+              {/* Thumbnail bar at bottom with other participants */}
+              <div className="h-24 sm:h-28 bg-[var(--bg-primary)]/60 border-t border-[var(--border-color)] overflow-x-auto overflow-y-hidden flex gap-2 p-2 flex-shrink-0">
+                {/* Show self thumbnail if not screen sharing */}
+                {screenShareUid !== agoraUidRef.current && (
+                  <div className="flex-shrink-0 w-24 h-20 sm:w-32 sm:h-24">
+                    <StudentTile
+                      label={`${user?.name} (You)`}
+                      videoRef={localVideoRef}
+                      score={isTeacher ? undefined : engagementMap[agoraUid]}
+                      isLocal
+                      isVideoOff={isVideoOff}
+                      isThumbnail
+                    />
+                  </div>
+                )}
+                
+                {/* Other participants thumbnails */}
+                {socketParticipants
+                  .filter(p => p.agoraUid !== agoraUidRef.current && p.agoraUid !== screenShareUid)
+                  .map(p => {
+                    const agoraUser = remoteUsers.find(u => u.uid === p.agoraUid)
+                    const isOff = !agoraUser || videoOffUsers.has(p.agoraUid)
+                    return (
+                      <div key={p.agoraUid} className="flex-shrink-0 w-24 h-20 sm:w-32 sm:h-24">
+                        <StudentTile
+                          remoteUser={agoraUser}
+                          label={p.name || `Student ${String(p.agoraUid).slice(0, 6)}`}
+                          score={isOff ? 0 : engagementMap[p.agoraUid]}
+                          isVideoOff={isOff}
+                          isThumbnail
+                        />
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          ) : (
+            <div className={`grid ${gridClass} ${gridRows} ${gridGapClass} ${gridContainerClass} p-2 sm:p-4 overflow-hidden`}>
+              {/* Normal grid layout */}
+              <div className={`min-h-0 min-w-0 ${totalTiles === 1 ? 'max-w-4xl mx-auto w-full' : ''}`}>
+                <StudentTile
+                  label={`${user?.name || 'You'} (${isTeacher ? 'Teacher' : 'You'})`}
+                  videoRef={localVideoRef}
+                  score={isTeacher ? undefined : engagementMap[agoraUid]}
+                  isLocal
+                  isVideoOff={isVideoOff}
+                />
+              </div>
+              {socketParticipants
+                .filter(p => p.agoraUid !== agoraUidRef.current)
+                .map(p => {
+                  const agoraUser = remoteUsers.find(u => u.uid === p.agoraUid)
+                  const isOff = !agoraUser || videoOffUsers.has(p.agoraUid)
+                  return (
+                    <div key={p.agoraUid} className="min-h-0 min-w-0">
+                      <StudentTile
+                        remoteUser={agoraUser}
+                        label={p.name || `Student ${String(p.agoraUid).slice(0, 6)}`}
+                        score={isOff ? 0 : engagementMap[p.agoraUid]}
+                        isVideoOff={isOff}
+                      />
+                    </div>
+                  )
+                })}
+            </div>
+          )}
         </div>
 
         {/* AI Monitor Panel — teacher only, desktop */}
@@ -511,20 +629,20 @@ export default function MeetingPage() {
 
         {/* Chat Panel — full screen on mobile, sidebar on desktop */}
         {showChat && (
-          <div className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:w-72 md:w-80 bg-[#1a1d35] sm:border-l border-[#2d3155] flex flex-col overflow-hidden">
-            <div className="p-3 sm:p-4 border-b border-[#2d3155] flex items-center justify-between shrink-0">
-              <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+          <div className="fixed inset-0 z-40 sm:relative sm:inset-auto sm:w-72 md:w-80 bg-[var(--bg-secondary)] sm:border-l border-[var(--border-color)] flex flex-col overflow-hidden">
+            <div className="p-3 sm:p-4 border-b border-[var(--border-color)] flex items-center justify-between shrink-0">
+              <h2 className="text-[var(--text-primary)] font-semibold text-sm flex items-center gap-2">
                 <MessageCircle size={16} className="text-indigo-400" /> Chat
               </h2>
-              <button onClick={() => setShowChat(false)} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-[#2d3155]">
+              <button onClick={() => setShowChat(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded-lg hover:bg-[var(--bg-tertiary)]">
                 <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
               {chatMessages.length === 0 ? (
                 <div className="text-center py-8">
-                  <MessageCircle size={32} className="text-slate-600 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">No messages yet</p>
+                  <MessageCircle size={32} className="text-[var(--text-tertiary)] mx-auto mb-2" />
+                  <p className="text-[var(--text-secondary)] text-sm">No messages yet</p>
                 </div>
               ) : chatMessages.map((msg, i) => (
                 <div key={i} className="flex flex-col gap-1">
@@ -532,22 +650,22 @@ export default function MeetingPage() {
                     <div className="w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-glow">
                       {msg.senderName[0]?.toUpperCase()}
                     </div>
-                    <span className="text-gray-100 text-xs font-semibold truncate">{msg.senderName}</span>
-                    <span className="text-gray-500 text-xs shrink-0">{msg.timestamp}</span>
+                    <span className="text-[var(--text-primary)] text-xs font-semibold truncate">{msg.senderName}</span>
+                    <span className="text-[var(--text-secondary)] text-xs shrink-0">{msg.timestamp}</span>
                   </div>
-                  <p className="text-gray-300 text-sm ml-8 break-words">{msg.message}</p>
+                  <p className="text-[var(--text-primary)] text-sm ml-8 break-words">{msg.message}</p>
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
-            <div className="p-3 sm:p-4 border-t border-dark-700/40 flex gap-2 shrink-0 bg-gradient-to-r from-dark-800 to-dark-800/50">
+            <div className="p-3 sm:p-4 border-t border-[var(--border-color)] flex gap-2 shrink-0 bg-[var(--bg-secondary)]">
               <input
                 type="text"
                 placeholder="Type a message..."
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && sendChatMessage()}
-                className="flex-1 bg-dark-700/50 border border-dark-600/50 rounded-lg px-3 py-2 text-gray-100 text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 min-w-0 transition-colors"
+                className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm placeholder-[var(--text-tertiary)] focus:outline-none focus:border-indigo-500/50 min-w-0 transition-colors"
               />
               <button
                 onClick={sendChatMessage}
@@ -563,13 +681,13 @@ export default function MeetingPage() {
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Controls Bar */}
-      <div className="bg-[#1a1d35] border-t border-[#2d3155] px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto shrink-0">
+      <div className="bg-[var(--bg-secondary)] border-t border-[var(--border-color)] px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-center gap-1 sm:gap-2 overflow-x-auto shrink-0">
         <ControlBtn onClick={toggleMute} active={isMuted}
           icon={isMuted ? <MicOff size={16} /> : <Mic size={16} />}
           label={isMuted ? 'Unmute' : 'Mute'} />
         <ControlBtn onClick={toggleVideo} active={isVideoOff}
-          icon={isVideoOff ? <VideoOff size={16} /> : <Video size={16} />}
-          label={isVideoOff ? 'Start Cam' : 'Stop Cam'} />
+          icon={isVideoOff ? <CameraOff size={16} /> : <Camera size={16} />}
+          label={isVideoOff ? 'Start Camera' : 'Stop Camera'} />
         {isTeacher && (
           <ControlBtn onClick={toggleScreenShare} active={isSharing}
             icon={<Monitor size={16} />}
@@ -592,15 +710,15 @@ export default function MeetingPage() {
 function ControlBtn({ onClick, active, icon, label, color }) {
   const colors = {
     red: 'bg-red-600 hover:bg-red-700 text-white',
-    blue: active ? 'bg-blue-500 text-white' : 'bg-[#2d3155] hover:bg-[#3d4165] text-white',
-    indigo: active ? 'bg-indigo-600 text-white' : 'bg-[#2d3155] hover:bg-[#3d4165] text-white',
-    default: active ? 'bg-orange-600 text-white' : 'bg-[#2d3155] hover:bg-[#3d4165] text-white',
+    blue: active ? 'bg-blue-500 text-white' : 'bg-[var(--bg-tertiary)] hover:brightness-125 text-white',
+    indigo: active ? 'bg-indigo-600 text-white' : 'bg-[var(--bg-tertiary)] hover:brightness-125 text-white',
+    default: active ? 'bg-orange-600 text-white' : 'bg-[var(--bg-tertiary)] hover:brightness-125 text-white',
   }
   return (
-    <button onClick={onClick}
+    <button onClick={onClick} title={label}
       className={`flex flex-col items-center gap-0.5 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-medium transition-colors ${colors[color] || colors.default}`}>
       {icon}
-      <span className="hidden sm:block">{label}</span>
+      <span className="text-xs leading-tight max-w-[3rem]">{label}</span>
     </button>
   )
 }

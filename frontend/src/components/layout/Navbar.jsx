@@ -1,7 +1,8 @@
-import { Sparkles, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown, Clock, Menu, X } from 'lucide-react'
+import { Sparkles, LayoutDashboard, BookOpen, BarChart2, FileText, Settings, LogOut, ChevronDown, Clock, Menu, X, Moon, Sun } from 'lucide-react'
 import { useContext, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthContext } from '../../context/AuthContext'
+import { ThemeContext } from '../../context/ThemeContext'
 
 
 const getNavLinks = (role) => {
@@ -27,6 +28,7 @@ if (role === 'teacher') {
 }
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext)
+  const { theme, toggleTheme } = useContext(ThemeContext)
   const navigate = useNavigate()
   const location = useLocation()
   const [showDropdown, setShowDropdown] = useState(false)
@@ -86,6 +88,10 @@ export default function Navbar() {
 
         {/* Right Side */}
         <div className="flex items-center gap-2 sm:gap-3 relative">
+          <button onClick={toggleTheme} className="text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-[#2d3155]" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          
           <button onClick={() => handleNavClick('/settings')} className="hidden sm:block text-slate-400 hover:text-white transition-colors">
             <Settings size={18} />
           </button>

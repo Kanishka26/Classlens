@@ -40,7 +40,7 @@ const needAttention = [
 
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 

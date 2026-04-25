@@ -123,7 +123,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
         {/* Header */}

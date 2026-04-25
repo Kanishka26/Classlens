@@ -291,7 +291,7 @@ export default function ClassroomsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f1123]">
+      <div className="min-h-screen">
         <Navbar />
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-8 flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
@@ -304,7 +304,7 @@ export default function ClassroomsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1123]">
+    <div className="min-h-screen">
       <Navbar />
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
         
