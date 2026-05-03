@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import BackgroundVideo from './components/layout/BackgroundVideo'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
 import DashboardPage from './pages/DashboardPage'
 import ClassroomsPage from './pages/ClassroomsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/meet/:sessionId" element={<PrivateRoute><MeetingPage /></PrivateRoute>} />
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
             <Route path="/classrooms" element={<PrivateRoute><ClassroomsPage /></PrivateRoute>} />
             <Route path="/analytics" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />

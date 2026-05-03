@@ -5,6 +5,8 @@ import { io } from 'socket.io-client'
 import { AuthContext } from '../context/AuthContext'
 import StudentTile from '../components/meeting/StudentTile'
 import AIMonitorPanel from '../components/meeting/AIMonitorPanel'
+import WaitingRoom from '../components/meeting/WaitingRoom'
+import WaitingRoomControls from '../components/meeting/WaitingRoomControls'
 import { Mic, MicOff, Camera, CameraOff, Monitor, PhoneOff, Users, Activity, MessageCircle, Send, X } from 'lucide-react'
 
 const APP_ID = import.meta.env.VITE_AGORA_APP_ID
@@ -38,6 +40,12 @@ export default function MeetingPage() {
   const [channelName, setChannelName] = useState(null)
   const [loadingSession, setLoadingSession] = useState(true)
   const [screenShareUid, setScreenShareUid] = useState(null)
+  
+  // Waiting Room states
+  const [isInWaitingRoom, setIsInWaitingRoom] = useState(!isTeacher)
+  const [waitingRoomData, setWaitingRoomData] = useState(null)
+  const [waitingParticipants, setWaitingParticipants] = useState([])
+  const [admissionDenied, setAdmissionDenied] = useState(false)
 
   const chatEndRef = useRef(null)
   const clientRef = useRef(null)
@@ -124,7 +132,23 @@ export default function MeetingPage() {
     socketRef.current = socket
 
     socket.on('connect', () => {
-      socket.emit('join_session', { sessionId, userId: user?.id, role: user?.role, name: user?.name })
+      if (isTeacher) {
+        // Teachers join directly
+        socket.emit('join_session', { sessionId, userId: user?.id, role: user?.role, name: user?.name })
+        setIsInWaitingRoom(false)
+      } else {
+        // Students request to join (waiting room)
+        const isMicOn = waitingRoomData?.isMicOn ?? true
+        const isCameraOn = waitingRoomData?.isCameraOn ?? true
+        socket.emit('request_join_session', { 
+          sessionId, 
+          userId: user?.id, 
+          role: user?.role, 
+          name: user?.name,
+          isMicOn,
+          isCameraOn
+        })
+      }
     })
 
     socket.on('existing_participants', ({ participants }) => {
@@ -183,6 +207,33 @@ export default function MeetingPage() {
       setScreenShareUid(null)
     })
 
+    // Waiting room listeners
+    socket.on('waiting_participants_update', ({ waitingParticipants }) => {
+      console.log('📋 Updated waiting participants:', waitingParticipants)
+      setWaitingParticipants(waitingParticipants)
+    })
+
+    socket.on('participant_admitted', ({ socketId, name }) => {
+      console.log(`✅ You have been admitted to the meeting! Welcome ${name}`)
+      setIsInWaitingRoom(false)
+      // Now emit join_session to be added to active participants
+      socket.emit('join_session', { 
+        sessionId, 
+        userId: user?.id, 
+        role: user?.role, 
+        name: user?.name 
+      })
+    })
+
+    socket.on('participant_denied', ({ reason }) => {
+      console.log('❌ Your request to join was denied:', reason)
+      setAdmissionDenied(true)
+      setTimeout(() => {
+        alert('Your request to join this meeting was denied by the host.')
+        navigate('/classrooms')
+      }, 1000)
+    })
+
     client.on('user-published', async (remoteUser, mediaType) => {
       await client.subscribe(remoteUser, mediaType)
       if (mediaType === 'video') {
@@ -217,13 +268,13 @@ export default function MeetingPage() {
     }
   }, [sessionId])
 
-  // Join Agora channel once we have the correct channelName
+  // Join Agora channel once we have the correct channelName (but only if NOT in waiting room)
   useEffect(() => {
-    if (channelName && clientRef.current) {
+    if (channelName && clientRef.current && !isInWaitingRoom) {
       console.log('🔌 Starting to join Agora channel:', channelName)
       joinChannel(clientRef.current)
     }
-  }, [channelName])
+  }, [channelName, isInWaitingRoom])
 
   // Handle screen track playback when screen sharing starts
   useEffect(() => {
@@ -372,6 +423,36 @@ export default function MeetingPage() {
     setChatInput('')
   }
 
+  // Handle waiting room ready - participant has configured mic/camera
+  const handleWaitingRoomReady = (data) => {
+    setWaitingRoomData(data)
+    // Just save the data - don't join yet. Wait for teacher to admit them.
+    // The request_join_session was already emitted on socket connect
+  }
+
+  // Handle waiting room cancel
+  const handleWaitingRoomCancel = () => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('leave_session', { sessionId })
+      socketRef.current.disconnect()
+    }
+    navigate('/classrooms')
+  }
+
+  // Handle teacher admitting a participant
+  const handleAdmitParticipant = (socketId) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('admit_participant', { sessionId, socketId })
+    }
+  }
+
+  // Handle teacher denying a participant
+  const handleDenyParticipant = (socketId) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('deny_participant', { sessionId, socketId })
+    }
+  }
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
@@ -429,6 +510,35 @@ export default function MeetingPage() {
     isCentered = false
   }
 
+  if (isInWaitingRoom && !isTeacher) {
+    return (
+      <WaitingRoom 
+        sessionName={sessionName} 
+        onCancel={handleWaitingRoomCancel}
+        onReady={handleWaitingRoomReady}
+        user={user}
+      />
+    )
+  }
+
+  if (admissionDenied) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="text-6xl mb-4">❌</div>
+          <p className="text-white text-lg font-semibold">Access Denied</p>
+          <p className="text-slate-400 text-sm mt-2">Your request to join this meeting was denied by the host.</p>
+          <button
+            onClick={() => navigate('/classrooms')}
+            className="mt-6 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+          >
+            Return to Classrooms
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!joined) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -442,6 +552,13 @@ export default function MeetingPage() {
 
   return (
     <div className="h-screen bg-transparent flex flex-col overflow-hidden">
+
+      {/* Waiting Room Controls for Teachers */}
+      {isTeacher && <WaitingRoomControls 
+        waitingParticipants={waitingParticipants}
+        onAdmit={handleAdmitParticipant}
+        onDeny={handleDenyParticipant}
+      />}
 
       {/* Header */}
       <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between shrink-0">

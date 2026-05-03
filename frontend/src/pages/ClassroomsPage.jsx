@@ -198,6 +198,8 @@ export default function ClassroomsPage() {
       
       if (data.id) {
         console.log('🚀 Navigating to meeting:', data.id)
+        // Refresh classrooms to update session count before navigating
+        await fetchClassrooms()
         setShowMeetingModal(false)
         navigate(`/meet/${data.id}`)
       } else {
@@ -628,10 +630,15 @@ export default function ClassroomsPage() {
               Start a live session for <span className="text-indigo-400 font-semibold">{selectedClassroom.name}</span>
             </p>
 
-            <div className="bg-[#0f1123] rounded-lg p-4 sm:p-5 mb-6 sm:mb-8">
+            <div className="bg-[#0f1123] rounded-lg p-4 sm:p-5 mb-6 sm:mb-8 overflow-hidden">
               <p className="text-slate-400 text-xs sm:text-sm mb-3">Classroom Details:</p>
-              <p className="text-white font-medium text-sm">{selectedClassroom.name}</p>
-              <p className="text-slate-500 text-xs mt-2">{selectedClassroom.students} students enrolled</p>
+              <p className="text-white font-medium text-sm w-full truncate">{selectedClassroom.name}</p>
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-700/50 flex-wrap">
+                <p className="text-slate-400 text-xs flex-shrink-0">Students:</p>
+                <p className="text-indigo-400 font-semibold text-sm flex-shrink-0">
+                  {Array.isArray(selectedClassroom.students) ? selectedClassroom.students.length : (selectedClassroom.students || 0)}
+                </p>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">

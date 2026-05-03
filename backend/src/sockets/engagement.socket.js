@@ -1,9 +1,107 @@
 const initEngagementSocket = (io) => {
   // Store participants per session: { [sessionId]: { [socketId]: { agoraUid, name, role } } }
   const sessionParticipants = {};
+  
+  // Store waiting room participants: { [sessionId]: { [socketId]: { userId, name, role, isMicOn, isCameraOn } } }
+  const waitingParticipants = {};
 
   io.on('connection', (socket) => {
     console.log('🔗 Socket connected:', socket.id);
+
+    // Request to join session - adds participant to waiting room
+    socket.on('request_join_session', ({ sessionId, userId, role, name, isMicOn, isCameraOn }) => {
+      socket.join(`session:${sessionId}`);
+      console.log(`⏳ [WAITING ROOM] ${name} (${role}) requested to join session:${sessionId}`);
+      
+      // Initialize waiting room if it doesn't exist
+      if (!waitingParticipants[sessionId]) {
+        waitingParticipants[sessionId] = {};
+      }
+      
+      // Add to waiting room
+      waitingParticipants[sessionId][socket.id] = {
+        userId,
+        name,
+        role,
+        isMicOn,
+        isCameraOn,
+        socketId: socket.id,
+        timestamp: Date.now()
+      };
+      
+      // Store socketId temporarily for later reference
+      socket.sessionId = sessionId;
+      socket.userId = userId;
+      
+      // Notify all teachers in this session about waiting participants
+      const waitingList = Object.values(waitingParticipants[sessionId] || {});
+      io.to(`session:${sessionId}`).emit('waiting_participants_update', { 
+        waitingParticipants: waitingList 
+      });
+      console.log(`📢 Notified teachers of ${waitingList.length} waiting participant(s) in session:${sessionId}`);
+    });
+
+    // Teacher admits a participant from waiting room
+    socket.on('admit_participant', ({ sessionId, socketId }) => {
+      console.log(`✅ [ADMIT] Teacher admitted participant (socketId: ${socketId}) to session:${sessionId}`);
+      
+      if (waitingParticipants[sessionId]?.[socketId]) {
+        const participant = waitingParticipants[sessionId][socketId];
+        
+        // Remove from waiting room
+        delete waitingParticipants[sessionId][socketId];
+        
+        // Initialize session participants if needed
+        if (!sessionParticipants[sessionId]) {
+          sessionParticipants[sessionId] = {};
+        }
+        
+        // Add to active participants
+        sessionParticipants[sessionId][socketId] = {
+          userId: participant.userId,
+          name: participant.name,
+          role: participant.role,
+          agoraUid: null
+        };
+        
+        // Notify the admitted participant
+        io.to(`session:${sessionId}`).emit('participant_admitted', {
+          socketId,
+          name: participant.name
+        });
+        
+        // Update waiting list for remaining teachers
+        const remainingWaiting = Object.values(waitingParticipants[sessionId] || {});
+        io.to(`session:${sessionId}`).emit('waiting_participants_update', { 
+          waitingParticipants: remainingWaiting 
+        });
+        console.log(`📢 Updated waiting list: ${remainingWaiting.length} participant(s) waiting`);
+      }
+    });
+
+    // Teacher denies a participant from waiting room
+    socket.on('deny_participant', ({ sessionId, socketId }) => {
+      console.log(`❌ [DENY] Teacher denied participant (socketId: ${socketId}) from session:${sessionId}`);
+      
+      if (waitingParticipants[sessionId]?.[socketId]) {
+        const participant = waitingParticipants[sessionId][socketId];
+        
+        // Remove from waiting room
+        delete waitingParticipants[sessionId][socketId];
+        
+        // Notify the denied participant
+        io.to(socketId).emit('participant_denied', {
+          reason: 'You were not admitted to this meeting'
+        });
+        
+        // Update waiting list for teachers
+        const remainingWaiting = Object.values(waitingParticipants[sessionId] || {});
+        io.to(`session:${sessionId}`).emit('waiting_participants_update', { 
+          waitingParticipants: remainingWaiting 
+        });
+        console.log(`📢 Updated waiting list: ${remainingWaiting.length} participant(s) waiting`);
+      }
+    });
 
     socket.on('join_session', ({ sessionId, userId, role, name }) => {
       socket.join(`session:${sessionId}`);
@@ -25,6 +123,15 @@ const initEngagementSocket = (io) => {
       
       // Store initial participant info with userId
       sessionParticipants[sessionId][socket.id] = { userId, name, role, agoraUid: null };
+      
+      // If this is a teacher, send them the current waiting participants list
+      if (role === 'teacher') {
+        const waitingList = Object.values(waitingParticipants[sessionId] || {});
+        socket.emit('waiting_participants_update', { 
+          waitingParticipants: waitingList 
+        });
+        console.log(`📤 Sent ${waitingList.length} waiting participant(s) to teacher in session:${sessionId}`);
+      }
       
       // Send existing participants to the new joiner
       const existingParticipants = Object.values(sessionParticipants[sessionId])
@@ -146,6 +253,18 @@ const initEngagementSocket = (io) => {
 
     socket.on('disconnect', () => {
       console.log('🔌 Socket disconnecting:', socket.id);
+      
+      // Clean up from waiting room if present
+      if (socket.sessionId && waitingParticipants[socket.sessionId]?.[socket.id]) {
+        delete waitingParticipants[socket.sessionId][socket.id];
+        console.log(`🗑️ Removed ${socket.id} from waiting room of session:${socket.sessionId}`);
+        
+        // Update waiting list
+        const remainingWaiting = Object.values(waitingParticipants[socket.sessionId] || {});
+        io.to(`session:${socket.sessionId}`).emit('waiting_participants_update', { 
+          waitingParticipants: remainingWaiting 
+        });
+      }
       
       // Clean up all sessions this socket was in and notify others
       Object.keys(sessionParticipants).forEach(sessionId => {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth.middleware');
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
 const { v4: uuidv4 } = require('uuid');
 
 function generateRoomCode() {
@@ -53,6 +53,16 @@ router.post('/create', verifyToken, async (req, res) => {
     console.log('✅ [SESSION] Session created and saved to Firestore:', session.id)
     console.log('   Channel Name:', session.channelName)
     console.log('   Teacher ID:', session.teacherId)
+    
+    // Update the classroom's session count if classroomId is provided
+    if (classroomId) {
+      const classroomRef = db.collection('classrooms').doc(classroomId);
+      await classroomRef.update({
+        sessions: admin.firestore.FieldValue.increment(1),
+        updatedAt: new Date().toISOString()
+      });
+      console.log('📈 [SESSION] Updated classroom sessions count for:', classroomId);
+    }
     
     // Verify the write by reading it back
     const verification = await db.collection('sessions').doc(session.id).get();
