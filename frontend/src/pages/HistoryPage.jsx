@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import { AuthContext } from '../context/AuthContext'
-import { Clock, TrendingUp, Video, Calendar, Award, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Clock, TrendingUp, Video, Calendar, Award, AlertTriangle, ChevronDown, ChevronUp, Eye } from 'lucide-react'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'
 
@@ -122,11 +122,18 @@ export default function HistoryPage() {
       <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
 
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
-            <Clock size={24} className="sm:w-7 sm:h-7 text-indigo-400" /> My Meeting History
-          </h1>
-          <p className="text-slate-400 text-xs sm:text-sm mt-2">Your personal engagement across all meetings.</p>
+        <div className="mb-6 sm:mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
+              <Clock size={24} className="sm:w-7 sm:h-7 text-indigo-400" /> My Meeting History
+            </h1>
+            <p className="text-slate-400 text-xs sm:text-sm mt-2">Your personal engagement across all meetings.</p>
+          </div>
+          <button
+            onClick={() => navigate(`/student/${user?.uid}/report`)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap">
+            <Eye size={18} /> View Report
+          </button>
         </div>
 
         {/* Stats */}

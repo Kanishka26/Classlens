@@ -32,8 +32,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('classlens_user')
   }
 
+  const updateUser = (updatedUserData) => {
+    const mergedUser = { ...user, ...updatedUserData }
+    setUser(mergedUser)
+    localStorage.setItem('classlens_user', JSON.stringify(mergedUser))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUser, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   )

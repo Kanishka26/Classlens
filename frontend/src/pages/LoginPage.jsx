@@ -27,8 +27,18 @@ export default function LoginPage() {
         ? { email: form.email, password: form.password }
         : { email: form.email, password: form.password, name: form.name, role: form.role }
       const { data } = await axios.post(`${API}${endpoint}`, payload)
-      login(data.user, data.token)
-      navigate('/dashboard')
+      
+      // If it's registration and email is not verified
+      if (tab === 'register' && !data.emailVerified) {
+        setError('')
+        setForm({ email: '', password: '', name: '', role: 'teacher' })
+        setError('Registration successful! Check your email to verify your account.')
+        setTimeout(() => setTab('login'), 3000)
+      } else {
+        // If it's login or email is already verified
+        login(data.user, data.token)
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Something went wrong')
     } finally {

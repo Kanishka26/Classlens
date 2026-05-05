@@ -235,14 +235,36 @@ export default function MeetingPage() {
     })
 
     client.on('user-published', async (remoteUser, mediaType) => {
-      await client.subscribe(remoteUser, mediaType)
-      if (mediaType === 'video') {
-        setRemoteUsers(prev => prev.find(u => u.uid === remoteUser.uid) ? prev : [...prev, remoteUser])
-        setVideoOffUsers(prev => { const next = new Set(prev); next.delete(remoteUser.uid); return next })
-      }
-      if (mediaType === 'audio') {
-        remoteUser.audioTrack?.play()
-        setRemoteUsers(prev => prev.find(u => u.uid === remoteUser.uid) ? prev : [...prev, remoteUser])
+      try {
+        await client.subscribe(remoteUser, mediaType)
+        console.log(`✅ Subscribed to ${mediaType} from user:`, remoteUser.uid)
+        
+        if (mediaType === 'video') {
+          // Add user to state first
+          setRemoteUsers(prev => {
+            const exists = prev.find(u => u.uid === remoteUser.uid)
+            return exists ? prev : [...prev, remoteUser]
+          })
+          setVideoOffUsers(prev => { const next = new Set(prev); next.delete(remoteUser.uid); return next })
+          
+          // Small delay to ensure the track is properly attached after subscription
+          setTimeout(() => {
+            if (remoteUser.videoTrack) {
+              console.log(`▶️ Playing video track for user:`, remoteUser.uid)
+              // Force a state update to trigger StudentTile rerender
+              setRemoteUsers(prev => [...prev.filter(u => u.uid !== remoteUser.uid), remoteUser])
+            }
+          }, 100)
+        }
+        if (mediaType === 'audio') {
+          remoteUser.audioTrack?.play()
+          setRemoteUsers(prev => {
+            const exists = prev.find(u => u.uid === remoteUser.uid)
+            return exists ? prev : [...prev, remoteUser]
+          })
+        }
+      } catch (err) {
+        console.error(`❌ Failed to subscribe to ${mediaType}:`, err)
       }
     })
 

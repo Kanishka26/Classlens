@@ -99,8 +99,12 @@ export default function Navbar() {
           {/* User Dropdown */}
           <button onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-[#2d3155] transition-colors">
-            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-              {user?.name?.[0]?.toUpperCase() || 'U'}
+            <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-bold overflow-hidden flex-shrink-0">
+              {user?.profilePicture ? (
+                <img src={user.profilePicture} alt={user?.name} className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.[0]?.toUpperCase() || 'U'
+              )}
             </div>
             <div className="text-left hidden sm:block">
               <p className="text-sm text-slate-300 font-medium">{user?.name || 'User'}</p>

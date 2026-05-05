@@ -5,9 +5,11 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
 const sessionRoutes = require('./routes/session.routes');
 const engagementRoutes = require('./routes/engagement.routes');
 const classroomsRoutes = require('./routes/classrooms.routes');
+const studentRoutes = require('./routes/student.routes');
 const { initEngagementSocket } = require('./sockets/engagement.socket');
 
 const app = express();
@@ -20,9 +22,11 @@ app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/auth', authRoutes);
+app.use('/user', userRoutes);
 app.use('/session', sessionRoutes);
 app.use('/engagement', engagementRoutes);
 app.use('/classrooms', classroomsRoutes);
+app.use('/student', studentRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'ClassLens Backend' }));
 

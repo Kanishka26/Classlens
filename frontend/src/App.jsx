@@ -7,10 +7,13 @@ import BackgroundVideo from './components/layout/BackgroundVideo'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import DashboardPage from './pages/DashboardPage'
 import ClassroomsPage from './pages/ClassroomsPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ReportsPage from './pages/ReportsPage'
+import SessionReportPage from './pages/SessionReportPage'
+import StudentReportPage from './pages/StudentReportPage'
 import HistoryPage from './pages/HistoryPage'
 import SettingsPage from './pages/SettingsPage'
 
@@ -29,9 +32,12 @@ export default function App() {
           <Routes>
             <Route path="/history" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
             <Route path="/meet/:sessionId" element={<PrivateRoute><MeetingPage /></PrivateRoute>} />
+            <Route path="/session/:sessionId/report" element={<PrivateRoute><SessionReportPage /></PrivateRoute>} />
+            <Route path="/student/:studentId/report" element={<PrivateRoute><StudentReportPage /></PrivateRoute>} />
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
             <Route path="/classrooms" element={<PrivateRoute><ClassroomsPage /></PrivateRoute>} />
             <Route path="/analytics" element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />

@@ -1,10 +1,14 @@
-import { useContext, useState } from 'react'
+import { useContext, useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import { AuthContext } from '../context/AuthContext'
-import { Settings, Bell, Lock, User, LogOut, Save, X } from 'lucide-react'
+import { Settings, Bell, Lock, User, LogOut, Save, X, Upload, Trash2 } from 'lucide-react'
 
 export default function SettingsPage() {
-  const { user, logout } = useContext(AuthContext)
+  const { user, logout, updateUser } = useContext(AuthContext)
+  const navigate = useNavigate()
+  const fileInputRef = useRef(null)
+  
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -21,6 +25,9 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [uploadingPicture, setUploadingPicture] = useState(false)
 
   const handleProfileChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -28,6 +35,65 @@ export default function SettingsPage() {
 
   const handleNotificationChange = (key) => {
     setNotifications({ ...notifications, [key]: !notifications[key] })
+  }
+
+  const handleProfilePictureClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleProfilePictureChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'File size must be less than 5MB' })
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please upload an image file' })
+      return
+    }
+
+    setUploadingPicture(true)
+    try {
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        const base64String = event.target.result
+        
+        // Update profile with picture
+        const token = localStorage.getItem('classlens_token')
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/user/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            profilePicture: base64String
+          })
+        })
+
+        if (!response.ok) throw new Error('Failed to upload profile picture')
+        
+        // Update AuthContext with new profile picture
+        updateUser({ profilePicture: base64String })
+        
+        setMessage({ type: 'success', text: 'Profile picture updated successfully!' })
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to upload profile picture' })
+    } finally {
+      setUploadingPicture(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -47,6 +113,10 @@ export default function SettingsPage() {
       })
 
       if (!response.ok) throw new Error('Failed to update profile')
+      
+      // Update AuthContext with new user data
+      updateUser({ name: formData.name, email: formData.email })
+      
       setMessage({ type: 'success', text: 'Profile updated successfully!' })
       setTimeout(() => setMessage({ type: '', text: '' }), 3000)
     } catch (err) {
@@ -116,9 +186,49 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setMessage({ type: 'error', text: 'Password is required to delete account' })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('classlens_token')
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/user/account`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          password: deletePassword
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete account')
+      }
+
+      setMessage({ type: 'success', text: 'Account deleted successfully. Redirecting...' })
+      setTimeout(() => {
+        logout()
+        navigate('/')
+      }, 2000)
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to delete account' })
+    } finally {
+      setLoading(false)
+      setShowDeleteModal(false)
+      setDeletePassword('')
+    }
+  }
+
   const handleLogout = () => {
     if (confirm('Are you sure you want to logout?')) {
       logout()
+      navigate('/')
     }
   }
 
@@ -179,15 +289,38 @@ export default function SettingsPage() {
             <div className="space-y-4 sm:space-y-5 mb-6 sm:mb-8">
               {/* Profile Avatar */}
               <div className="flex items-center gap-4">
-                <div className="w-16 sm:w-20 h-16 sm:h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                  {user?.name?.[0]?.toUpperCase()}
+                <div
+                  onClick={handleProfilePictureClick}
+                  className="w-16 sm:w-20 h-16 sm:h-20 bg-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 cursor-pointer hover:bg-indigo-700 transition-colors overflow-hidden"
+                >
+                  {user?.profilePicture ? (
+                    <img src={user.profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    user?.name?.[0]?.toUpperCase()
+                  )}
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm sm:text-base">{user?.name}</p>
                   <p className="text-slate-400 text-xs sm:text-sm capitalize">{user?.role} Account</p>
-                  <button className="text-indigo-400 hover:text-indigo-300 text-xs sm:text-sm mt-2">Change Avatar</button>
+                  <button
+                    onClick={handleProfilePictureClick}
+                    disabled={uploadingPicture}
+                    className="text-indigo-400 hover:text-indigo-300 text-xs sm:text-sm mt-2 flex items-center gap-1 disabled:opacity-50">
+                    <Upload size={14} />
+                    {uploadingPicture ? 'Uploading...' : 'Change Picture'}
+                  </button>
                 </div>
               </div>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureChange}
+                className="hidden"
+                disabled={uploadingPicture}
+              />
 
               {/* Name */}
               <div>
@@ -297,6 +430,18 @@ export default function SettingsPage() {
               <Lock size={16} />
               {loading ? 'Updating...' : 'Change Password'}
             </button>
+
+            {/* Delete Account Section */}
+            <div className="mt-8 pt-6 border-t border-[#2d3155]">
+              <h3 className="text-base sm:text-lg font-semibold text-red-400 mb-2">Delete Account</h3>
+              <p className="text-slate-400 text-xs sm:text-sm mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm transition-colors">
+                <Trash2 size={16} />
+                Delete Account
+              </button>
+            </div>
           </div>
         )}
 
@@ -361,6 +506,48 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1d35] border border-[#2d3155] rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-semibold text-white mb-2">Delete Account?</h2>
+            <p className="text-slate-400 text-sm mb-4">
+              This action is permanent and cannot be undone. All your data, classrooms, and sessions will be deleted.
+            </p>
+
+            {/* Password Input */}
+            <div className="mb-6">
+              <label className="block text-xs sm:text-sm font-medium text-slate-300 mb-2">Enter your password to confirm</label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Your password"
+                className="w-full bg-[#0f1123] border border-[#2d3155] rounded-lg px-4 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeletePassword('')
+                }}
+                className="flex-1 px-4 py-2.5 bg-[#2d3155] hover:bg-[#3d4175] text-white rounded-lg font-semibold text-sm transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={loading || !deletePassword}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-semibold text-sm transition-colors">
+                {loading ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

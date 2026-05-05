@@ -283,13 +283,86 @@ router.get('/:id/report', verifyToken, async (req, res) => {
       .where('sessionId', '==', req.params.id)
       .orderBy('timestamp', 'asc').get();
     const records = engSnap.docs.map(d => d.data());
+    
+    // Basic metrics
     const allScores = records.map(r => r.score);
     const avg = s => Math.round(s.reduce((a, b) => a + b, 0) / s.length);
+    const avgScore = allScores.length ? avg(allScores) : 0;
+    const peakScore = allScores.length ? Math.max(...allScores) : 0;
+    const lowScore = allScores.length ? Math.min(...allScores) : 0;
+    
+    // Per-student breakdown
+    const studentMap = {};
+    records.forEach(r => {
+      if (!studentMap[r.studentId]) {
+        studentMap[r.studentId] = {
+          studentId: r.studentId,
+          name: r.studentName || 'Unknown',
+          scores: [],
+          duration: 0
+        };
+      }
+      studentMap[r.studentId].scores.push(r.score);
+    });
+    
+    const perStudent = Object.values(studentMap).map(s => ({
+      ...s,
+      avgScore: s.scores.length ? avg(s.scores) : 0,
+      maxScore: Math.max(...s.scores),
+      minScore: Math.min(...s.scores),
+      participationCount: s.scores.length
+    }));
+    
+    // Timeline analysis - group by time intervals (5 min buckets)
+    const timeline = {};
+    records.forEach(r => {
+      const time = new Date(r.timestamp);
+      const bucket = Math.floor(time.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000);
+      const bucketKey = new Date(bucket).toISOString();
+      if (!timeline[bucketKey]) timeline[bucketKey] = [];
+      timeline[bucketKey].push(r.score);
+    });
+    
+    const timelineData = Object.entries(timeline)
+      .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+      .map(([time, scores]) => ({
+        time,
+        avgScore: avg(scores),
+        maxScore: Math.max(...scores),
+        recordCount: scores.length
+      }));
+    
+    // Peak and low points
+    const peakPoint = records.reduce((max, r) => r.score > max.score ? r : max, records[0] || {});
+    const lowPoint = records.reduce((min, r) => r.score < min.score ? r : min, records[0] || {});
+    
+    // Status determination
+    const getStatus = (score) => {
+      if (score >= 80) return 'High';
+      if (score >= 50) return 'Medium';
+      return 'Low';
+    };
+    
     res.json({
       sessionName: session.name,
-      avgScore: allScores.length ? avg(allScores) : 0,
-      peakScore: allScores.length ? Math.max(...allScores) : 0,
-      totalRecords: records.length
+      sessionId: session.id,
+      createdAt: session.createdAt,
+      avgScore,
+      peakScore,
+      lowScore,
+      status: getStatus(avgScore),
+      totalRecords: records.length,
+      totalStudents: perStudent.length,
+      perStudent,
+      timeline: timelineData,
+      peakPoint: {
+        ...peakPoint,
+        time: peakPoint.timestamp
+      },
+      lowPoint: {
+        ...lowPoint,
+        time: lowPoint.timestamp
+      }
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

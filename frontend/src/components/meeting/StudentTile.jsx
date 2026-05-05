@@ -5,10 +5,18 @@ export default function StudentTile({ remoteUser, label, score, isLocal, videoRe
   const tileRef = useRef(null)
 
   useEffect(() => {
-  if (!isLocal && remoteUser?.videoTrack && !isVideoOff) {
-    remoteUser.videoTrack.play(tileRef.current)
-  }
-}, [remoteUser, isVideoOff])
+    if (!isLocal && remoteUser?.videoTrack && !isVideoOff && tileRef.current) {
+      try {
+        // Check if the video track is already playing to avoid errors
+        remoteUser.videoTrack.play(tileRef.current)
+        console.log(`▶️ Video playing for user:`, remoteUser.uid)
+      } catch (err) {
+        console.error(`❌ Error playing video for user ${remoteUser.uid}:`, err)
+      }
+    } else if (isLocal && videoRef && videoRef.current) {
+      // Local video is handled separately by MeetingPage
+    }
+  }, [remoteUser?.videoTrack, isVideoOff, remoteUser?.uid])
 
   const getStyle = (s) => {
     if (s === undefined || s === null) return { ring: 'ring-[var(--border-color)]', badge: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]', bar: 'bg-gray-500' }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar'
 import { Calendar, Users, TrendingUp, FileText, Download, Eye, Filter, X } from 'lucide-react'
 import jsPDF from 'jspdf'
@@ -20,6 +21,7 @@ const getStatusColor = (status) => {
 }
 
 export default function ReportsPage() {
+  const navigate = useNavigate()
   const [modal, setModal] = useState(null) // 'student' | 'session' | 'weekly'
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
@@ -489,11 +491,18 @@ else if (type === 'weekly') {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => downloadSessionPDF(selected)}
-                      className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-medium transition-colors">
-                      <Download size={18} /> Download PDF Report
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => navigate(`/session/${selected.id}/report`)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-medium transition-colors">
+                        <Eye size={18} /> View Detailed Report
+                      </button>
+                      <button
+                        onClick={() => downloadSessionPDF(selected)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-medium transition-colors">
+                        <Download size={18} /> Download PDF
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -514,9 +523,13 @@ else if (type === 'weekly') {
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(session.status)}`}>{session.status}</span>
                           <span className="text-white font-bold text-sm">{session.avgScore}%</span>
                           <div className="flex items-center gap-2">
+                            <button onClick={() => navigate(`/session/${session.id}/report`)}
+                              className="flex items-center gap-1 text-slate-400 hover:text-indigo-400 text-xs px-2 py-1 border border-[#2d3155] rounded-lg">
+                              <Eye size={13} /> Report
+                            </button>
                             <button onClick={() => setSelected(session)}
                               className="flex items-center gap-1 text-slate-400 hover:text-white text-xs px-2 py-1 border border-[#2d3155] rounded-lg">
-                              <Eye size={13} /> View
+                              <Eye size={13} /> Details
                             </button>
                             <button onClick={() => downloadSessionPDF(session)}
                               className="flex items-center gap-1 text-slate-400 hover:text-indigo-400 text-xs px-2 py-1 border border-[#2d3155] rounded-lg">
