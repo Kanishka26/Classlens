@@ -1,1 +1,1 @@
-# Classlens
+# ClassLens
